@@ -1,0 +1,15 @@
+{
+    "name": "Flutter",
+    "image": "matspfeiffer/flutter:beta",
+    "extensions": [
+        "dart-code.dart-code",
+        "dart-code.flutter"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "GitHub.copilot"
+            ]
+        }
+    }
+}
