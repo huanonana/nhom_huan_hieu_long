@@ -1,11 +1,11 @@
 {
-    "name": "nhom_huan_hieu",
-    "short_name": "nhom_huan_hieu",
+    "name": "Homestay Huấn - Hiếu - Long",
+    "short_name": "Homestay",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Khung ứng dụng quản lý homestay của nhóm Huấn, Hiếu, Long.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,30 +1,47 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:nhom_huan_hieu/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+  testWidgets('Home introduces homestay and opens team information', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    expect(find.text('Homestay HHL'), findsOneWidget);
+    expect(find.text('Quản lý phòng'), findsOneWidget);
+    expect(find.text('Chưa triển khai'), findsWidgets);
+    expect(find.textContaining('Phạm Văn Huấn — 23010331'), findsNothing);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.tap(find.byTooltip('Thông tin nhóm'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.textContaining('Phạm Văn Huấn — 23010331'), findsOneWidget);
+    expect(
+      find.textContaining('Nguyễn Hữu Lê Hiếu — 23010985'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Nguyễn Hải Long — 2301872'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.tap(find.text('Đóng'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Home fits a narrow mobile screen', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MyApp());
+    await tester.scrollUntilVisible(
+      find.text('Thông tin nhóm phát triển'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Thông tin nhóm phát triển'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

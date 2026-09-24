@@ -1,5 +1,9 @@
 # homestay_app
 
+> Bản khung Flutter cũ được giữ lại để tham khảo. Bài tuần 1 sử dụng dự án ở
+> **thư mục gốc repo**, không chạy lệnh Flutter trong thư mục này.
+> Xem [hướng dẫn chính](../README.md).
+
 A new Flutter project.
 
 ## Getting Started
