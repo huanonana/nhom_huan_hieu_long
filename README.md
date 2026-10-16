@@ -1,5 +1,10 @@
 # Xây dựng ứng dụng quản lý homestay — Huấn, Hiếu, Long
 
+> Bản phát triển app sau tuần 1: xem [luồng chạy thử](docs/chay-ban-thu.md) và
+> [đặc tả đã rà soát](docs/dac-ta-app.md). App hiện dùng dữ liệu demo lưu trên máy,
+> có khám phá, đặt/duyệt đơn và chuyển vai trò thử nghiệm. Hướng dẫn tuần 1 bên
+> dưới được giữ làm tài liệu lịch sử; màn hình Home đã được phát triển tiếp.
+
 Bài thực hành tuần 1: lập nhóm, tạo repo chung và khung Flutter chạy trên web
 bằng Dev Container/GitHub Codespaces.
 
@@ -76,6 +81,19 @@ flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
 ```
 
 Mở http://localhost:8080.
+
+## Chạy với tính năng AI
+
+Các tính năng tóm tắt đánh giá, viết mô tả homestay và chatbot cần Anthropic API
+key. Chạy app và truyền key qua `--dart-define`:
+
+```bash
+flutter run --dart-define=ANTHROPIC_API_KEY=xxx
+```
+
+Thay `xxx` bằng API key của bạn. Không commit hoặc chia sẻ key trong mã nguồn.
+Nếu không truyền key, app vẫn chạy đầy đủ các chức năng khác; các tính năng AI
+sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
 
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
