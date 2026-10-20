@@ -131,6 +131,7 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
     final available =
         _dates == null || repo.available(room, _dates!.start, _dates!.end);
     return PageBody(
+      maxWidth: 680,
       children: [
         Align(
           alignment: Alignment.centerLeft,

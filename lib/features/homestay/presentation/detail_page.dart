@@ -142,7 +142,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
         .toList();
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 1180),
         child: Column(
           children: [
             Expanded(

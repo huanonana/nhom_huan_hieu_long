@@ -176,7 +176,7 @@ class HostPage extends ConsumerWidget {
                     '$pending',
                     'Cần xử lý',
                     Icons.pending_actions,
-                    color: const Color(0xFFFFEFE8),
+                    color: const Color(0xFFEEF2FF),
                     onTap: () => context.go('/bookings'),
                   ),
                 ),
@@ -198,7 +198,7 @@ class HostPage extends ConsumerWidget {
                     money(completedValue),
                     'Tổng lũy kế · dữ liệu demo',
                     Icons.payments_outlined,
-                    color: const Color(0xFFFFE8D9),
+                    color: const Color(0xFFEEF2FF),
                     onTap: () => context.go('/bookings'),
                     highlighted: true,
                   ),
@@ -459,7 +459,7 @@ class _AdminWelcomeCard extends StatelessWidget {
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(22),
       gradient: const LinearGradient(
-        colors: [Color(0xFFEC6338), Color(0xFFEF8B5E)],
+        colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -571,7 +571,7 @@ class _AttentionCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEFE8),
+                    color: const Color(0xFFEEF2FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -931,7 +931,7 @@ class _RevenueCardState extends State<_RevenueCard> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0E8),
+                      color: const Color(0xFFF5F3FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -959,7 +959,7 @@ class _RevenueCardState extends State<_RevenueCard> {
                 alignment: Alignment.center,
                 margin: const EdgeInsets.only(top: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF9F5),
+                  color: const Color(0xFFFAFAFF),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: const Column(
@@ -1221,7 +1221,7 @@ class _Metric extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           gradient: highlighted
               ? const LinearGradient(
-                  colors: [Color(0xFFFFE3CF), Color(0xFFFFF4EB)],
+                  colors: [Color(0xFFE0E7FF), Color(0xFFF5F3FF)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )

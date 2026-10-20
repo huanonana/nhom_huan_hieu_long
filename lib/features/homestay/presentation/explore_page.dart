@@ -371,7 +371,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           )
           .toList();
       return PageBody(
-        maxWidth: 480,
+        maxWidth: 1200,
         children: [
           const SectionHeading(
             'Nơi bạn đã lưu',
@@ -388,7 +388,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   children: [
                     const CircleAvatar(
                       radius: 44,
-                      backgroundColor: Color(0xFFFFE9DC),
+                      backgroundColor: Color(0xFFEEF2FF),
                       child: Icon(
                         Icons.favorite_border_rounded,
                         size: 42,
@@ -455,7 +455,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       children: [
         PageBody(
           eager: true,
-          maxWidth: 480,
+          maxWidth: 1200,
           children: [
             if (!widget.favoritesOnly) ...[
               InkWell(
@@ -623,7 +623,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                         ),
                         const CircleAvatar(
                           radius: 19,
-                          backgroundColor: Color(0xFFFFE9DC),
+                          backgroundColor: Color(0xFFEEF2FF),
                           child: Icon(
                             Icons.tune_rounded,
                             size: 18,
@@ -1175,7 +1175,7 @@ class _HomeCardState extends ConsumerState<HomeCard> {
                     FilledButton(
                       onPressed: () => context.go('/homestays/${home.id}'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFE9DC),
+                        backgroundColor: const Color(0xFFEEF2FF),
                         foregroundColor: brand,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 13,

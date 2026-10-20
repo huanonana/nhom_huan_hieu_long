@@ -162,7 +162,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),
                 const CircleAvatar(
-                  backgroundColor: Color(0xFFFFE8D9),
+                  backgroundColor: Color(0xFFEEF2FF),
                   child: Icon(Icons.auto_awesome_rounded, color: brand),
                 ),
                 const SizedBox(width: 10),
@@ -232,7 +232,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: isUser
-                                    ? const Color(0xFFFFE8D9)
+                                    ? const Color(0xFFEEF2FF)
                                     : Colors.white,
                                 borderRadius: BorderRadius.only(
                                   topLeft: const Radius.circular(18),

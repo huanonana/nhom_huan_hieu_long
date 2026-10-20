@@ -81,7 +81,7 @@ class ProfilePage extends ConsumerWidget {
               width: 66,
               height: 66,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFEAE3),
+                color: const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(22),
               ),
               child: const Icon(
@@ -273,7 +273,7 @@ class _AuthenticatedProfile extends ConsumerWidget {
       const SizedBox(height: 12),
       CircleAvatar(
         radius: 34,
-        backgroundColor: const Color(0xFFFFEAE3),
+        backgroundColor: const Color(0xFFEEF2FF),
         child: Icon(
           user.role == AppUserRole.host
               ? Icons.admin_panel_settings_outlined

@@ -11,27 +11,36 @@ class PageBody extends StatelessWidget {
     required this.children,
     this.eager = false,
     this.controller,
-    this.maxWidth = 1040,
+    this.maxWidth = 1200,
   });
   final List<Widget> children;
   final bool eager;
   final ScrollController? controller;
   final double maxWidth;
   @override
-  Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: ListView(
-        controller: controller,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        children: eager
-            ? [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                ),
-              ]
-            : children,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Align(
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        width: constraints.maxWidth < maxWidth
+            ? constraints.maxWidth
+            : maxWidth,
+        height: constraints.maxHeight,
+        child: ListView(
+          controller: controller,
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width >= 900 ? 32 : 18,
+            vertical: MediaQuery.sizeOf(context).width >= 900 ? 32 : 18,
+          ),
+          children: eager
+              ? [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: children,
+                  ),
+                ]
+              : children,
+        ),
       ),
     ),
   );

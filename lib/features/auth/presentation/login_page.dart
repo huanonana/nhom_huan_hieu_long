@@ -88,8 +88,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: widget.adminMode
-                          ? const [Color(0xFFFFE8D7), Color(0xFFFFF8F1)]
-                          : const [Color(0xFFFFF0E5), Color(0xFFFFFFFF)],
+                          ? const [Color(0xFFEEF2FF), Color(0xFFFFF8F1)]
+                          : const [Color(0xFFEFF6FF), Color(0xFFFFFFFF)],
                     ),
                     border: Border.all(color: const Color(0xFFF0E3D8)),
                   ),

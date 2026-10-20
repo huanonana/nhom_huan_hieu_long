@@ -187,7 +187,11 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
                 }
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 850 ? 2 : 1;
+                    final columns = constraints.maxWidth >= 1050
+                        ? 3
+                        : constraints.maxWidth >= 680
+                        ? 2
+                        : 1;
                     final cardWidth = columns == 1
                         ? constraints.maxWidth
                         : (constraints.maxWidth - 18) / 2;
@@ -436,9 +440,16 @@ class _WelcomeBanner extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFFF0E4), Color(0xFFFFFBF7), Color(0xFFF5F4FF)],
+            colors: [Colors.white, Color(0xFFF8FAFC), Color(0xFFEEF2FF)],
           ),
-          border: Border.all(color: const Color(0xFFF0E7DE)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D0F172A),
+              blurRadius: 28,
+              offset: Offset(0, 12),
+            ),
+          ],
         ),
         child: wide
             ? Row(
@@ -569,7 +580,7 @@ class _EmptyStays extends StatelessWidget {
         children: [
           const CircleAvatar(
             radius: 29,
-            backgroundColor: Color(0xFFFFE9DC),
+            backgroundColor: Color(0xFFEEF2FF),
             child: Icon(Icons.holiday_village_outlined, color: brand, size: 28),
           ),
           const SizedBox(height: 12),

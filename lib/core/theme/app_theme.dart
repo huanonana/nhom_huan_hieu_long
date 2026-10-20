@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-const brand = Color(0xFFE65C22);
-const ink = Color(0xFF25251F);
-const muted = Color(0xFF797B76);
+const brand = Color(0xFF4F46E5);
+const ink = Color(0xFF0F172A);
+const muted = Color(0xFF64748B);
 
 class AppScrollBehavior extends MaterialScrollBehavior {
   @override
@@ -23,7 +23,7 @@ ThemeData buildTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFFAF8F4),
+    scaffoldBackgroundColor: const Color(0xFFF8FAFC),
     textTheme: const TextTheme(
       headlineMedium: TextStyle(
         fontSize: 27,
@@ -54,11 +54,11 @@ ThemeData buildTheme() {
     dividerTheme: const DividerThemeData(color: Color(0xFFEAE7E1), space: 24),
     cardTheme: CardThemeData(
       color: Colors.white,
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: Color(0xFFECE8E1)),
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -78,7 +78,7 @@ ThemeData buildTheme() {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: Colors.white,
-      selectedColor: const Color(0xFFFFE9DC),
+      selectedColor: const Color(0xFFEEF2FF),
       side: const BorderSide(color: Color(0xFFE9E5DF)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       labelStyle: const TextStyle(fontSize: 13, color: ink),
@@ -87,7 +87,7 @@ ThemeData buildTheme() {
     navigationBarTheme: NavigationBarThemeData(
       height: 72,
       backgroundColor: Colors.white,
-      indicatorColor: const Color(0xFFFFEEDD),
+      indicatorColor: const Color(0xFFEEF2FF),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (s) => TextStyle(
           fontSize: 11,
