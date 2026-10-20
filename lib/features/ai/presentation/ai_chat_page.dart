@@ -8,6 +8,7 @@ import '../../../core/widgets/common.dart';
 import '../../homestay/domain/catalog.dart';
 import '../../booking/presentation/firestore_repository_provider.dart';
 import '../domain/ai_message.dart';
+import '../domain/local_stay_assistant.dart';
 import 'ai_provider.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
@@ -106,13 +107,18 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         : previous;
     String reply;
     try {
-      reply = await ref
-          .read(aiServiceProvider)
-          .chatReply(
-            history,
-            text,
-            systemContext: _catalogContext(homes, rooms),
-          );
+      final service = ref.read(aiServiceProvider);
+      reply = service.apiKey.trim().isEmpty
+          ? LocalStayAssistant.reply(
+              query: text,
+              homestays: homes,
+              rooms: rooms,
+            )
+          : await service.chatReply(
+              history,
+              text,
+              systemContext: _catalogContext(homes, rooms),
+            );
     } catch (_) {
       reply = 'Không thể kết nối AI lúc này';
     }
@@ -149,197 +155,329 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   Widget _buildChat(List<Homestay> homes, List<Room> rooms) {
+    final claudeReady = ref.watch(aiServiceProvider).apiKey.trim().isNotEmpty;
     return SafeArea(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Quay lại',
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                const CircleAvatar(
-                  backgroundColor: Color(0xFFEEF2FF),
-                  child: Icon(Icons.auto_awesome_rounded, color: brand),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Trợ lý chọn homestay',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      Text(
-                        'Tư vấn theo danh sách chỗ ở của HHL Stay',
-                        style: TextStyle(color: muted, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Color(0xFFE8E4DF))),
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-              itemCount: _messages.length + (_sending ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length) {
-                  return const _TypingBubble();
-                }
-                final message = _messages[index];
-                final isUser = message.role == AiMessageRole.user;
-                final mentioned = isUser
-                    ? const <Homestay>[]
-                    : _mentionedHomes(message.content, homes);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 13),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    mainAxisAlignment: isUser
-                        ? MainAxisAlignment.end
-                        : MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (!isUser) ...[
-                        const CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Color(0xFFF0EAF6),
-                          child: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: Color(0xFF8050A6),
-                            size: 17,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Flexible(
+                      IconButton(
+                        tooltip: 'Quay lại',
+                        onPressed: () => context.pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const CircleAvatar(
+                        backgroundColor: Color(0xFFEEF2FF),
+                        child: Icon(Icons.auto_awesome_rounded, color: brand),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
                         child: Column(
-                          crossAxisAlignment: isUser
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 11,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isUser
-                                    ? const Color(0xFFEEF2FF)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(18),
-                                  topRight: const Radius.circular(18),
-                                  bottomLeft: Radius.circular(isUser ? 18 : 5),
-                                  bottomRight: Radius.circular(isUser ? 5 : 18),
-                                ),
-                                border: isUser
-                                    ? null
-                                    : Border.all(
-                                        color: const Color(0xFFE8E4DF),
-                                      ),
-                              ),
-                              child: Text(
-                                message.content,
-                                style: const TextStyle(height: 1.4),
+                            Text(
+                              'Trợ lý chọn homestay',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            Text(
+                              'Tư vấn theo danh sách chỗ ở của HHL Stay',
+                              style: TextStyle(color: muted, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: claudeReady
+                              ? const Color(0xFFE8F7EE)
+                              : const Color(0xFFF0EAF6),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.circle,
+                              size: 7,
+                              color: claudeReady
+                                  ? const Color(0xFF16834A)
+                                  : const Color(0xFF8050A6),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              claudeReady
+                                  ? 'Claude sẵn sàng'
+                                  : 'Hỗ trợ offline',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: claudeReady
+                                    ? const Color(0xFF16834A)
+                                    : const Color(0xFF70428F),
                               ),
                             ),
-                            if (mentioned.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 5),
-                                child: Wrap(
-                                  spacing: 5,
-                                  runSpacing: 3,
-                                  children: [
-                                    for (final home in mentioned)
-                                      TextButton.icon(
-                                        onPressed: () =>
-                                            context.go('/homestays/${home.id}'),
-                                        icon: const Icon(
-                                          Icons.open_in_new_rounded,
-                                          size: 15,
-                                        ),
-                                        label: const Text('Xem chi tiết'),
-                                        style: TextButton.styleFrom(
-                                          visualDensity: VisualDensity.compact,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+                  itemCount:
+                      _messages.length +
+                      (_messages.length == 1 ? 1 : 0) +
+                      (_sending ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (_messages.length == 1 && index == 1) {
+                      return Padding(
+                        padding: const EdgeInsets.only(
+                          left: 40,
+                          top: 2,
+                          bottom: 8,
+                        ),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _PromptChip(
+                              label: 'Homestay ở Đà Lạt',
+                              onTap: () => _sendPrompt(
+                                'Gợi ý homestay ở Đà Lạt',
+                                homes,
+                                rooms,
+                              ),
+                            ),
+                            _PromptChip(
+                              label: 'Chỗ giá hợp lý',
+                              onTap: () =>
+                                  _sendPrompt('Gợi ý chỗ giá rẻ', homes, rooms),
+                            ),
+                            _PromptChip(
+                              label: 'Có tiện nghi gì?',
+                              onTap: () => _sendPrompt(
+                                'Homestay có những tiện nghi gì?',
+                                homes,
+                                rooms,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    final messageIndex = _messages.length == 1 && index > 1
+                        ? index - 1
+                        : index;
+                    if (messageIndex == _messages.length) {
+                      return const _TypingBubble();
+                    }
+                    final message = _messages[messageIndex];
+                    final isUser = message.role == AiMessageRole.user;
+                    final mentioned = isUser
+                        ? const <Homestay>[]
+                        : _mentionedHomes(message.content, homes);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 13),
+                      child: Row(
+                        mainAxisAlignment: isUser
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!isUser) ...[
+                            const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Color(0xFFF0EAF6),
+                              child: Icon(
+                                Icons.auto_awesome_rounded,
+                                color: Color(0xFF8050A6),
+                                size: 17,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: isUser
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 11,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isUser
+                                        ? const Color(0xFFEEF2FF)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: const Radius.circular(18),
+                                      topRight: const Radius.circular(18),
+                                      bottomLeft: Radius.circular(
+                                        isUser ? 18 : 5,
+                                      ),
+                                      bottomRight: Radius.circular(
+                                        isUser ? 5 : 18,
+                                      ),
+                                    ),
+                                    border: isUser
+                                        ? null
+                                        : Border.all(
+                                            color: const Color(0xFFE8E4DF),
+                                          ),
+                                  ),
+                                  child: Text(
+                                    message.content,
+                                    style: const TextStyle(height: 1.4),
+                                  ),
+                                ),
+                                if (mentioned.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Wrap(
+                                      spacing: 5,
+                                      runSpacing: 3,
+                                      children: [
+                                        for (final home in mentioned)
+                                          TextButton.icon(
+                                            onPressed: () => context.go(
+                                              '/homestays/${home.id}',
+                                            ),
+                                            icon: const Icon(
+                                              Icons.open_in_new_rounded,
+                                              size: 15,
+                                            ),
+                                            label: const Text('Xem chi tiết'),
+                                            style: TextButton.styleFrom(
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: Color(0xFFE8E4DF))),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _input,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      hintText: 'Hỏi về địa điểm, giá hoặc tiện nghi…',
-                      filled: true,
-                      fillColor: const Color(0xFFF7F5F2),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        decoration: InputDecoration(
+                          hintText: 'Hỏi về địa điểm, giá hoặc tiện nghi…',
+                          filled: true,
+                          fillColor: const Color(0xFFF7F5F2),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _send(homes, rooms),
                       ),
                     ),
-                    onSubmitted: (_) => _send(homes, rooms),
-                  ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: 'Gửi tin nhắn',
+                      onPressed: _sending ? null : () => _send(homes, rooms),
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded),
+                      style: IconButton.styleFrom(backgroundColor: brand),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  tooltip: 'Gửi tin nhắn',
-                  onPressed: _sending ? null : () => _send(homes, rooms),
-                  icon: _sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.send_rounded),
-                  style: IconButton.styleFrom(backgroundColor: brand),
-                ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  void _sendPrompt(String value, List<Homestay> homes, List<Room> rooms) {
+    _input.text = value;
+    _send(homes, rooms);
+  }
+}
+
+class _PromptChip extends StatelessWidget {
+  const _PromptChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ActionChip(
+    avatar: const Icon(Icons.auto_awesome_rounded, size: 15, color: brand),
+    label: Text(label),
+    onPressed: onTap,
+    backgroundColor: Colors.white,
+    side: const BorderSide(color: Color(0xFFE8E4DF)),
+    shape: const StadiumBorder(),
+  );
 }
 
 class _TypingBubble extends StatelessWidget {
