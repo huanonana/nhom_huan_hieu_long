@@ -935,18 +935,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             const SizedBox(height: 12),
           ],
         ),
-        Positioned(
-          right: 18,
-          bottom: 18,
-          child: FloatingActionButton(
-            heroTag: 'open-ai-homestay-chat',
-            tooltip: 'Tư vấn homestay bằng AI',
-            onPressed: () => context.push('/ai-chat'),
-            backgroundColor: brand,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.chat_rounded),
-          ),
-        ),
       ],
     );
   }

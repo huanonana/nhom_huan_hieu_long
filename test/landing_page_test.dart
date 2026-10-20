@@ -20,6 +20,7 @@ void main() {
 
     expect(find.byType(LandingPage), findsOneWidget);
     expect(find.text('vui trọn chuyến đi.'), findsOneWidget);
+    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsOneWidget);
     final exploreCta = find.text('Khám phá homestay');
     await tester.ensureVisible(exploreCta);
     await tester.tap(exploreCta);

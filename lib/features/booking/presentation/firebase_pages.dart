@@ -225,15 +225,6 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FloatingActionButton.small(
-            heroTag: 'firebase-ai-chat',
-            onPressed: () => context.push('/ai-chat'),
-            child: const Icon(Icons.chat_bubble_outline),
-          ),
-        ),
       ],
     );
   }

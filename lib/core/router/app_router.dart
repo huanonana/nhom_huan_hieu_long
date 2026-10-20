@@ -16,6 +16,7 @@ import '../../features/booking/presentation/firebase_pages.dart';
 import '../../features/booking/presentation/firestore_repository_provider.dart';
 import '../../features/dashboard/presentation/host_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
+import '../../features/ai/presentation/ai_assistant_button.dart';
 import '../../features/homestay/presentation/detail_page.dart';
 import '../../features/homestay/presentation/explore_page.dart';
 import '../../features/landing/presentation/landing_page.dart';
@@ -224,7 +225,19 @@ class AppShell extends ConsumerWidget {
         children: [
           if (ref.watch(storageNoticeProvider) case final String notice)
             _StorageNotice(notice: notice),
-          Expanded(child: child),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: child),
+                if (!host && path == '/explore')
+                  const Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: AiAssistantButton(),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: SizedBox(
@@ -391,6 +404,12 @@ class _GuestWebShell extends StatelessWidget {
                   left: 0,
                   right: 0,
                   child: IgnorePointer(child: _SoftGlow()),
+                ),
+              if (path == '/explore')
+                const Positioned(
+                  right: 28,
+                  bottom: 26,
+                  child: AiAssistantButton(),
                 ),
             ],
           ),

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/stay_gallery.dart';
+import '../../ai/presentation/ai_assistant_button.dart';
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -27,6 +30,8 @@ class LandingPage extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 960;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      floatingActionButton: const AiAssistantButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SelectionArea(
         child: CustomScrollView(
           slivers: [
@@ -388,16 +393,38 @@ class _StayDashboardPreview extends StatefulWidget {
 class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
   final _pageController = PageController();
   int _activePhoto = 0;
-  late final _photos = photosFor('sea').take(3).toList();
+  Timer? _autoAdvance;
+  late final _slides = [
+    for (final destination in const [
+      ('Đà Nẵng', 'sea'),
+      ('Đà Lạt', 'pine'),
+      ('Hội An', 'garden'),
+      ('Sa Pa', 'sapa'),
+    ])
+      if (photosFor(destination.$2).isNotEmpty)
+        (destination.$1, photosFor(destination.$2).first),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _autoAdvance = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && _pageController.hasClients && _slides.length > 1) {
+        _nextPhoto();
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _autoAdvance?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
   void _nextPhoto() {
-    final next = (_activePhoto + 1) % _photos.length;
+    if (_slides.isEmpty) return;
+    final next = (_activePhoto + 1) % _slides.length;
     _pageController.animateToPage(
       next,
       duration: const Duration(milliseconds: 520),
@@ -480,11 +507,11 @@ class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
               children: [
                 PageView.builder(
                   controller: _pageController,
-                  itemCount: _photos.length,
+                  itemCount: _slides.length,
                   onPageChanged: (index) =>
                       setState(() => _activePhoto = index),
                   itemBuilder: (context, index) => Image.asset(
-                    _photos[index].asset,
+                    _slides[index].$2.asset,
                     fit: BoxFit.cover,
                     width: double.infinity,
                   ),
@@ -504,7 +531,9 @@ class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
                   left: 14,
                   child: _PreviewBadge(
                     icon: Icons.location_on_outlined,
-                    text: 'Đà Nẵng',
+                    text: _slides.isEmpty
+                        ? 'Homestay Việt Nam'
+                        : _slides[_activePhoto].$1,
                   ),
                 ),
                 Positioned(
@@ -562,7 +591,7 @@ class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
                   right: 16,
                   bottom: 18,
                   child: Row(
-                    children: List.generate(_photos.length, (index) {
+                    children: List.generate(_slides.length, (index) {
                       final selected = index == _activePhoto;
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
