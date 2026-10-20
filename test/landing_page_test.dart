@@ -19,8 +19,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LandingPage), findsOneWidget);
-    expect(find.text('đúng gu.'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Tìm'));
+    expect(find.text('vui trọn chuyến đi.'), findsOneWidget);
+    final exploreCta = find.text('Khám phá homestay');
+    await tester.ensureVisible(exploreCta);
+    await tester.tap(exploreCta);
     await tester.pumpAndSettle();
 
     expect(
@@ -28,6 +30,8 @@ void main() {
       '/explore',
     );
     expect(find.byType(ExplorePage), findsOneWidget);
+    expect(find.text('Bắt đầu ngay'), findsNothing);
+    expect(find.text('Dành cho chủ nhà'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });

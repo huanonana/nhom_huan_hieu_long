@@ -376,18 +376,6 @@ class _GuestWebShell extends StatelessWidget {
                       onPressed: () => context.go('/login'),
                       child: const Text('Đăng nhập'),
                     ),
-                  const SizedBox(width: 10),
-                  FilledButton.icon(
-                    onPressed: () =>
-                        context.go(signedIn ? '/profile' : '/register'),
-                    icon: Icon(
-                      signedIn
-                          ? Icons.account_circle_outlined
-                          : Icons.arrow_forward_rounded,
-                      size: 18,
-                    ),
-                    label: Text(signedIn ? 'Tài khoản' : 'Bắt đầu ngay'),
-                  ),
                 ],
               ),
             ),

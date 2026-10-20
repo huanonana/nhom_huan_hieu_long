@@ -128,17 +128,6 @@ class _LandingHeader extends StatelessWidget {
                 onPressed: () => context.go('/login'),
                 child: const Text('Đăng nhập'),
               ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: () => context.go('/explore'),
-              style: FilledButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 14 : 20,
-                  vertical: 13,
-                ),
-              ),
-              child: Text(compact ? 'Tìm' : 'Bắt đầu ngay'),
-            ),
           ],
         ),
       ),
@@ -259,7 +248,7 @@ class _HeroCopy extends StatelessWidget {
       ),
       const SizedBox(height: 25),
       Text(
-        'Tìm chốn nghỉ đẹp\ncho chuyến đi ',
+        'Nghỉ đúng nơi,\n',
         textAlign: compact ? TextAlign.center : TextAlign.left,
         style: TextStyle(
           color: ink,
@@ -270,7 +259,7 @@ class _HeroCopy extends StatelessWidget {
         ),
       ),
       Text(
-        'đúng gu.',
+        'vui trọn chuyến đi.',
         textAlign: compact ? TextAlign.center : TextAlign.left,
         style: TextStyle(
           color: brand,

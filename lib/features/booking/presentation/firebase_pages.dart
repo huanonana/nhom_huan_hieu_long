@@ -182,7 +182,6 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
                   return _EmptyStays(
                     favoritesOnly: widget.favoritesOnly,
                     hasHomes: allHomes.isNotEmpty,
-                    onHostManagement: () => context.go('/host'),
                   );
                 }
                 return LayoutBuilder(
@@ -333,10 +332,9 @@ class _WelcomeBanner extends StatelessWidget {
           Text.rich(
             const TextSpan(
               children: [
-                TextSpan(text: 'Tìm chốn nghỉ đẹp\n'),
-                TextSpan(text: 'cho chuyến đi '),
+                TextSpan(text: 'Nghỉ đúng nơi,\n'),
                 TextSpan(
-                  text: 'đúng gu.',
+                  text: 'vui trọn chuyến đi.',
                   style: TextStyle(color: brand),
                 ),
               ],
@@ -563,14 +561,9 @@ class _TrustItem extends StatelessWidget {
 }
 
 class _EmptyStays extends StatelessWidget {
-  const _EmptyStays({
-    required this.favoritesOnly,
-    required this.hasHomes,
-    required this.onHostManagement,
-  });
+  const _EmptyStays({required this.favoritesOnly, required this.hasHomes});
   final bool favoritesOnly;
   final bool hasHomes;
-  final VoidCallback onHostManagement;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -603,14 +596,6 @@ class _EmptyStays extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(color: muted, fontSize: 12, height: 1.4),
           ),
-          if (!favoritesOnly) ...[
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              onPressed: onHostManagement,
-              icon: const Icon(Icons.storefront_outlined),
-              label: const Text('Dành cho chủ nhà · Mở quản lý'),
-            ),
-          ],
         ],
       ),
     ),
