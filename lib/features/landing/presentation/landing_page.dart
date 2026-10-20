@@ -305,16 +305,6 @@ class _HeroCopy extends StatelessWidget {
               shadowColor: brand.withValues(alpha: .25),
             ),
           ),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/admin/login?from=%2Fhost'),
-            icon: const Icon(Icons.dashboard_customize_outlined, size: 18),
-            label: const Text('Dành cho chủ nhà'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ink,
-              backgroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            ),
-          ),
         ],
       ),
       const SizedBox(height: 26),
