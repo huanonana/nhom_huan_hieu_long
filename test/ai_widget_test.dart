@@ -125,6 +125,8 @@ void main() {
       UncontrolledProviderScope(container: container, child: const MyApp()),
     );
     await tester.pumpAndSettle();
+    container.read(routerProvider).go('/explore');
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Tư vấn homestay bằng AI'));
     await tester.pumpAndSettle();
     expect(find.text('Trợ lý chọn homestay'), findsOneWidget);

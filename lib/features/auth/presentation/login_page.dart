@@ -50,7 +50,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
       if (mounted) {
         final requested = GoRouterState.of(context).uri.queryParameters['from'];
-        context.go(requested ?? (widget.adminMode ? '/host' : '/'));
+        context.go(requested ?? (widget.adminMode ? '/host' : '/explore'));
       }
     } catch (error) {
       if (mounted) setState(() => _error = authErrorMessage(error));

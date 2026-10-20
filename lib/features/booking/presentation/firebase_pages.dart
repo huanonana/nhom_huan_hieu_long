@@ -809,7 +809,7 @@ class FirebaseDetailPage extends ConsumerWidget {
                 maxWidth: 480,
                 children: [
                   TextButton.icon(
-                    onPressed: () => context.go('/'),
+                    onPressed: () => context.go('/explore'),
                     icon: const Icon(Icons.arrow_back),
                     label: const Text('Khám phá'),
                   ),

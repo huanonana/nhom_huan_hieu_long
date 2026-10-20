@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nhom_huan_hieu/core/router/app_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nhom_huan_hieu/core/state/app_state.dart';
 import 'package:nhom_huan_hieu/core/widgets/location_photo_data.dart';
@@ -87,6 +88,8 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(container: container, child: const MyApp()),
       );
+      await tester.pumpAndSettle();
+      container.read(routerProvider).go('/explore');
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Có hồ bơi'));
       await tester.pumpAndSettle();

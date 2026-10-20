@@ -408,7 +408,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     ),
                     const SizedBox(height: 18),
                     FilledButton(
-                      onPressed: () => context.go('/'),
+                      onPressed: () => context.go('/explore'),
                       child: const Text('Đi khám phá'),
                     ),
                   ],

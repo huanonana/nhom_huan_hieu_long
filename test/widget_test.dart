@@ -21,6 +21,8 @@ void main() {
       UncontrolledProviderScope(container: container, child: const MyApp()),
     );
     await tester.pumpAndSettle();
+    container.read(routerProvider).go('/explore');
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bạn muốn đi đâu?'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Qua đêm'));
@@ -73,6 +75,8 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const MyApp()),
     );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/explore');
     await tester.pumpAndSettle();
     await reveal(tester, find.byTooltip('Sắp xếp'), 200);
     await tester.tap(find.byTooltip('Sắp xếp'));
@@ -166,6 +170,8 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const MyApp()),
     );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/explore');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bạn muốn đi đâu?'));
     await tester.pumpAndSettle();

@@ -156,7 +156,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                     backgroundColor: brand,
                     leading: IconButton(
                       tooltip: 'Quay lại Khám phá',
-                      onPressed: () => context.go('/'),
+                      onPressed: () => context.go('/explore'),
                       icon: const Icon(Icons.arrow_back),
                     ),
                     actions: [

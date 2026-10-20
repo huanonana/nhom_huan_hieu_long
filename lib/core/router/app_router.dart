@@ -18,6 +18,7 @@ import '../../features/dashboard/presentation/host_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
 import '../../features/homestay/presentation/detail_page.dart';
 import '../../features/homestay/presentation/explore_page.dart';
+import '../../features/landing/presentation/landing_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -53,6 +54,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // mismatch and let them switch to a host account.
           return null;
         }
+        if (user.role == AppUserRole.host && path == '/') return '/host';
         if (onAuthPage) {
           final requested = state.uri.queryParameters['from'];
           if (requested != null &&
@@ -85,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ),
     routes: [
+      GoRoute(path: '/', builder: (_, _) => const LandingPage()),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(
         path: '/admin/login',
@@ -96,7 +99,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             AppShell(path: state.uri.path, child: child),
         routes: [
           GoRoute(
-            path: '/',
+            path: '/explore',
             builder: (_, _) => ref.read(useFirebaseBackendProvider)
                 ? const FirebaseExplorePage()
                 : const ExplorePage(),
@@ -185,8 +188,8 @@ class AppShell extends ConsumerWidget {
       );
     }
     final paths = host
-        ? ['/host', '/', '/bookings', '/profile']
-        : ['/', '/favorites', '/bookings', '/profile'];
+        ? ['/host', '/explore', '/bookings', '/profile']
+        : ['/explore', '/favorites', '/bookings', '/profile'];
     final selected = paths.indexOf(path);
     return Scaffold(
       appBar: AppBar(
@@ -348,8 +351,8 @@ class _GuestWebShell extends StatelessWidget {
                   const Spacer(),
                   _TopNavLink(
                     label: 'Khám phá',
-                    selected: path == '/',
-                    onTap: () => context.go('/'),
+                    selected: path == '/explore',
+                    onTap: () => context.go('/explore'),
                   ),
                   _TopNavLink(
                     label: 'Yêu thích',
@@ -394,7 +397,7 @@ class _GuestWebShell extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(child: child),
-              if (path == '/')
+              if (path == '/explore')
                 const Positioned(
                   top: 0,
                   left: 0,
@@ -548,8 +551,8 @@ class _AdminWebShell extends StatelessWidget {
               _AdminNavItem(
                 label: 'Khám phá',
                 icon: Icons.travel_explore_rounded,
-                selected: path == '/',
-                onTap: () => context.go('/'),
+                selected: path == '/explore',
+                onTap: () => context.go('/explore'),
               ),
               const Spacer(),
               _AdminNavItem(
@@ -659,7 +662,7 @@ class _AdminWebShell extends StatelessWidget {
                     ),
                     const SizedBox(width: 20),
                     OutlinedButton.icon(
-                      onPressed: () => context.go('/'),
+                      onPressed: () => context.go('/explore'),
                       icon: const Icon(Icons.open_in_new_rounded, size: 16),
                       label: const Text('Trang khách'),
                     ),
