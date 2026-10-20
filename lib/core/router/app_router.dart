@@ -193,6 +193,11 @@ class AppShell extends ConsumerWidget {
         : ['/explore', '/favorites', '/bookings', '/profile'];
     final selected = paths.indexOf(path);
     return Scaffold(
+      floatingActionButton:
+          path == '/explore' && ref.watch(aiAssistantEntryVisibleProvider)
+          ? const AiAssistantButton()
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       appBar: AppBar(
         title: const FittedBox(fit: BoxFit.scaleDown, child: _HhlLogo()),
         actions: [
@@ -226,17 +231,7 @@ class AppShell extends ConsumerWidget {
           if (ref.watch(storageNoticeProvider) case final String notice)
             _StorageNotice(notice: notice),
           Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(child: child),
-                if (!host && path == '/explore')
-                  const Positioned(
-                    right: 16,
-                    bottom: 16,
-                    child: AiAssistantButton(),
-                  ),
-              ],
-            ),
+            child: Stack(children: [Positioned.fill(child: child)]),
           ),
         ],
       ),
@@ -330,7 +325,7 @@ class _StorageNotice extends StatelessWidget {
   );
 }
 
-class _GuestWebShell extends StatelessWidget {
+class _GuestWebShell extends ConsumerWidget {
   const _GuestWebShell({
     required this.path,
     required this.child,
@@ -342,7 +337,7 @@ class _GuestWebShell extends StatelessWidget {
   final bool signedIn;
   final String name;
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
     body: Column(
       children: [
         Container(
@@ -398,7 +393,8 @@ class _GuestWebShell extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(child: child),
-              if (path == '/explore')
+              if (path == '/explore' &&
+                  ref.watch(aiAssistantEntryVisibleProvider))
                 const Positioned(
                   top: 0,
                   left: 0,

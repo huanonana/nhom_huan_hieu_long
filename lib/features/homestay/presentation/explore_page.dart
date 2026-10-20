@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
 import '../../../core/widgets/stay_gallery.dart';
+import '../../ai/presentation/ai_assistant_button.dart';
 import '../domain/catalog.dart';
 import '../../review/presentation/review_widgets.dart';
 import '../../review/domain/review.dart';
@@ -88,6 +89,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   Future<void> _openSearch() async {
+    ref.read(aiAssistantEntryVisibleProvider.notifier).state = false;
     var city = _city;
     final cities = [
       'Tất cả',
@@ -218,6 +220,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         ),
       ),
     );
+    if (mounted) {
+      ref.read(aiAssistantEntryVisibleProvider.notifier).state = true;
+    }
     if (applied == true && mounted) {
       setState(() => _city = city);
       _showResults();
@@ -233,6 +238,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   Future<void> _filters() async {
+    ref.read(aiAssistantEntryVisibleProvider.notifier).state = false;
     var price = _price;
     var amenity = _amenity;
     final applied = await showModalBottomSheet<bool>(
@@ -317,6 +323,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         ),
       ),
     );
+    if (mounted) {
+      ref.read(aiAssistantEntryVisibleProvider.notifier).state = true;
+    }
     if (applied == true && mounted)
       setState(() {
         _price = price;
