@@ -822,7 +822,7 @@ class _Eyebrow extends StatelessWidget {
   );
 }
 
-class _FeatureCard extends StatelessWidget {
+class _FeatureCard extends StatefulWidget {
   const _FeatureCard({
     required this.icon,
     required this.title,
@@ -837,57 +837,75 @@ class _FeatureCard extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(23),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x080F172A),
-          blurRadius: 20,
-          offset: Offset(0, 8),
+  State<_FeatureCard> createState() => _FeatureCardState();
+}
+
+class _FeatureCardState extends State<_FeatureCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      transform: Matrix4.translationValues(0, _hovered ? -6 : 0, 0),
+      padding: const EdgeInsets.all(23),
+      decoration: BoxDecoration(
+        color: _hovered ? const Color(0xFFFCFCFF) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _hovered ? const Color(0xFFBFC5FF) : const Color(0xFFE2E8F0),
         ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: brand),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          title,
-          style: const TextStyle(
-            color: ink,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          text,
-          style: const TextStyle(color: muted, height: 1.6, fontSize: 13),
-        ),
-        if (actionLabel case final label?) ...[
-          const SizedBox(height: 14),
-          TextButton.icon(
-            key: const ValueKey('landing-ai-cta'),
-            onPressed: onPressed,
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
-            label: Text(label),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(
+              0xFF0F172A,
+            ).withValues(alpha: _hovered ? .12 : .03),
+            blurRadius: _hovered ? 28 : 20,
+            offset: Offset(0, _hovered ? 14 : 8),
           ),
         ],
-      ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(widget.icon, color: brand),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            widget.title,
+            style: const TextStyle(
+              color: ink,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.text,
+            style: const TextStyle(color: muted, height: 1.6, fontSize: 13),
+          ),
+          if (widget.actionLabel case final label?) ...[
+            const SizedBox(height: 14),
+            TextButton.icon(
+              key: const ValueKey('landing-ai-cta'),
+              onPressed: widget.onPressed,
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
+              label: Text(label),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }

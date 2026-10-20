@@ -956,6 +956,7 @@ class HomeCard extends ConsumerStatefulWidget {
 
 class _HomeCardState extends ConsumerState<HomeCard> {
   int _photo = 0;
+  bool _hovered = false;
   @override
   Widget build(BuildContext context) {
     final home = widget.home;
@@ -963,221 +964,240 @@ class _HomeCardState extends ConsumerState<HomeCard> {
     final reviews = widget.reviews;
     final favorites = ref.watch(favoritesProvider);
     final photos = photosFor(home.id);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.012 : 1,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: Card(
+          elevation: _hovered ? 8 : 2,
+          shadowColor: brand.withValues(alpha: _hovered ? .18 : .06),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 244,
-                child: PageView.builder(
-                  itemCount: photos.length,
-                  onPageChanged: (index) => setState(() => _photo = index),
-                  itemBuilder: (context, index) {
-                    final image = Image.asset(
-                      photos[index].asset,
-                      width: double.infinity,
-                      height: 244,
-                      fit: BoxFit.cover,
-                      semanticLabel: photos[index].caption,
-                      frameBuilder:
-                          (context, child, frame, wasSynchronouslyLoaded) {
-                            if (wasSynchronouslyLoaded || frame != null) {
-                              return child;
-                            }
-                            return Shimmer.fromColors(
-                              baseColor: const Color(0xFFEAE6E0),
-                              highlightColor: const Color(0xFFF8F6F3),
-                              loop: 1,
-                              child: const ColoredBox(color: Colors.white),
-                            );
-                          },
-                    );
-                    return GestureDetector(
-                      onTap: () => context.go('/homestays/${home.id}'),
-                      child: index == 0
-                          ? Hero(tag: 'homestay-cover-${home.id}', child: image)
-                          : image,
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    home.city,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 244,
+                    child: PageView.builder(
+                      itemCount: photos.length,
+                      onPageChanged: (index) => setState(() => _photo = index),
+                      itemBuilder: (context, index) {
+                        final image = Image.asset(
+                          photos[index].asset,
+                          width: double.infinity,
+                          height: 244,
+                          fit: BoxFit.cover,
+                          semanticLabel: photos[index].caption,
+                          frameBuilder:
+                              (context, child, frame, wasSynchronouslyLoaded) {
+                                if (wasSynchronouslyLoaded || frame != null) {
+                                  return child;
+                                }
+                                return Shimmer.fromColors(
+                                  baseColor: const Color(0xFFEAE6E0),
+                                  highlightColor: const Color(0xFFF8F6F3),
+                                  loop: 1,
+                                  child: const ColoredBox(color: Colors.white),
+                                );
+                              },
+                        );
+                        return GestureDetector(
+                          onTap: () => context.go('/homestays/${home.id}'),
+                          child: index == 0
+                              ? Hero(
+                                  tag: 'homestay-cover-${home.id}',
+                                  child: image,
+                                )
+                              : image,
+                        );
+                      },
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: IconButton.filledTonal(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: favorites.contains(home.id) ? brand : ink,
-                  ),
-                  tooltip: favorites.contains(home.id)
-                      ? 'Bỏ yêu thích'
-                      : 'Yêu thích',
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    final next = {...favorites};
-                    next.contains(home.id)
-                        ? next.remove(home.id)
-                        : next.add(home.id);
-                    ref.read(favoritesProvider.notifier).state = next;
-                  },
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    transitionBuilder: (child, animation) =>
-                        ScaleTransition(scale: animation, child: child),
-                    child: Icon(
-                      favorites.contains(home.id)
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      key: ValueKey(favorites.contains(home.id)),
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 14,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < photos.length; i++)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        width: i == _photo ? 15 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: i == _photo ? Colors.white : Colors.white70,
-                          borderRadius: BorderRadius.circular(6),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        home.city,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
                         ),
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: IconButton.filledTonal(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: favorites.contains(home.id)
+                            ? brand
+                            : ink,
+                      ),
+                      tooltip: favorites.contains(home.id)
+                          ? 'Bỏ yêu thích'
+                          : 'Yêu thích',
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        final next = {...favorites};
+                        next.contains(home.id)
+                            ? next.remove(home.id)
+                            : next.add(home.id);
+                        ref.read(favoritesProvider.notifier).state = next;
+                      },
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(scale: animation, child: child),
+                        child: Icon(
+                          favorites.contains(home.id)
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          key: ValueKey(favorites.contains(home.id)),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 14,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < photos.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            width: i == _photo ? 15 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: i == _photo
+                                  ? Colors.white
+                                  : Colors.white70,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 15,
+                          color: muted,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            home.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: muted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      home.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 7),
+                    if (reviews.isNotEmpty) ReviewScore(reviews),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
+                      children: [
+                        for (final amenity in home.amenities.take(3))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F3EF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              amenity,
+                              style: const TextStyle(fontSize: 11, color: ink),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    const Divider(height: 1),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Giá từ mỗi đêm',
+                                style: TextStyle(fontSize: 11, color: muted),
+                              ),
+                              Text(
+                                money(price),
+                                style: const TextStyle(
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w800,
+                                  color: brand,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: () => context.go('/homestays/${home.id}'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            foregroundColor: brand,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 13,
+                              vertical: 10,
+                            ),
+                          ),
+                          child: const Text('Xem phòng'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 15,
-                      color: muted,
-                    ),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        home.address,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: muted, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  home.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 7),
-                if (reviews.isNotEmpty) ReviewScore(reviews),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 5,
-                  children: [
-                    for (final amenity in home.amenities.take(3))
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F3EF),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          amenity,
-                          style: const TextStyle(fontSize: 11, color: ink),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                const Divider(height: 1),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Giá từ mỗi đêm',
-                            style: TextStyle(fontSize: 11, color: muted),
-                          ),
-                          Text(
-                            money(price),
-                            style: const TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
-                              color: brand,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: () => context.go('/homestays/${home.id}'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFEEF2FF),
-                        foregroundColor: brand,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 10,
-                        ),
-                      ),
-                      child: const Text('Xem phòng'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

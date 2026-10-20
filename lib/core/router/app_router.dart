@@ -16,6 +16,7 @@ import '../../features/booking/presentation/firebase_pages.dart';
 import '../../features/booking/presentation/firestore_repository_provider.dart';
 import '../../features/dashboard/presentation/host_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
+import '../../features/ai/presentation/ai_assistant_button.dart';
 import '../../features/homestay/presentation/detail_page.dart';
 import '../../features/homestay/presentation/explore_page.dart';
 import '../../features/landing/presentation/landing_page.dart';
@@ -229,6 +230,10 @@ class AppShell extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: path == '/explore'
+          ? const AiAssistantButton()
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: SizedBox(
         height: 72,
         child: ColoredBox(
@@ -387,6 +392,12 @@ class _GuestWebShell extends ConsumerWidget {
           child: Stack(
             children: [
               Positioned.fill(child: child),
+              if (path == '/explore')
+                const Positioned(
+                  right: 28,
+                  bottom: 28,
+                  child: AiAssistantButton(),
+                ),
               if (path == '/explore')
                 const Positioned(
                   top: 0,

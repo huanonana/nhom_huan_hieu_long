@@ -52,7 +52,7 @@ void main() {
       '/explore',
     );
     expect(find.byType(ExplorePage), findsOneWidget);
-    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsNothing);
+    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsOneWidget);
     expect(find.text('Bắt đầu ngay'), findsNothing);
     expect(find.text('Dành cho chủ nhà'), findsNothing);
     await tester.pumpWidget(const SizedBox());
