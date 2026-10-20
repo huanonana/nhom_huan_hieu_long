@@ -9,6 +9,8 @@ import '../../../core/state/app_state.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
 import '../../../core/widgets/stay_gallery.dart';
+import '../../ai/data/ai_service.dart';
+import '../../ai/presentation/ai_provider.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../homestay/domain/catalog.dart';
 import '../../review/domain/review.dart';
@@ -757,6 +759,11 @@ class FirebaseDetailPage extends ConsumerWidget {
     final homes = ref.watch(firestoreHomestaysProvider);
     final rooms = ref.watch(firestoreRoomsProvider);
     final reviews = ref.watch(firestoreReviewsProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final favorites = user == null
+        ? ref.watch(favoritesProvider)
+        : ref.watch(favoriteIdsProvider(user.uid)).valueOrNull ??
+              const <String>{};
     return homes.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) =>
@@ -781,71 +788,366 @@ class FirebaseDetailPage extends ConsumerWidget {
               final homeReviews = allReviews
                   .where((review) => review.homestayId == home.id)
                   .toList();
-              return PageBody(
-                maxWidth: 480,
+              final activeRooms = homeRooms
+                  .where((room) => room.active)
+                  .toList(growable: false);
+              final cheapestRoom = activeRooms.isEmpty
+                  ? null
+                  : activeRooms.reduce((a, b) => a.price <= b.price ? a : b);
+              final favorite = favorites.contains(home.id);
+              return Column(
                 children: [
-                  TextButton.icon(
-                    onPressed: () => context.go('/explore'),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Khám phá'),
-                  ),
-                  StayPhoto(home.id, height: 270, label: false),
-                  const SizedBox(height: 16),
-                  Text(
-                    home.name,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  Text(
-                    '${home.address}, ${home.city}',
-                    style: const TextStyle(color: muted),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(home.description),
-                  const SizedBox(height: 10),
-                  Text('Tiện nghi: ${home.amenities.join(' · ')}'),
-                  const SectionHeading(
-                    'Danh sách phòng',
-                    'Chọn phòng phù hợp với chuyến đi.',
-                  ),
-                  if (homeRooms.isEmpty)
-                    const EmptyState('Homestay chưa có phòng.'),
-                  for (final room in homeRooms)
-                    Card(
-                      child: ListTile(
-                        leading: Icon(
-                          room.active
-                              ? Icons.bed_outlined
-                              : Icons.build_outlined,
+                  Expanded(
+                    child: PageBody(
+                      key: const ValueKey('firebase-detail-body'),
+                      maxWidth: 1180,
+                      children: [
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => context.go('/explore'),
+                              icon: const Icon(Icons.arrow_back),
+                              label: const Text('Khám phá'),
+                            ),
+                            const Spacer(),
+                            OutlinedButton.icon(
+                              key: const ValueKey('firebase-detail-favorite'),
+                              onPressed: () => _toggleDetailFavorite(
+                                context,
+                                ref,
+                                user?.uid,
+                                home.id,
+                                favorite,
+                              ),
+                              icon: Icon(
+                                favorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: favorite ? brand : null,
+                              ),
+                              label: Text(
+                                favorite ? 'Đã yêu thích' : 'Yêu thích',
+                              ),
+                            ),
+                          ],
                         ),
-                        title: Text(room.name),
-                        subtitle: Text(
-                          '${room.capacity} khách · ${room.active ? 'Đang mở' : 'Bảo trì'}',
+                        StayGallery(home.id),
+                        const SizedBox(height: 20),
+                        Text(
+                          home.name,
+                          style: Theme.of(context).textTheme.headlineMedium,
                         ),
-                        trailing: Text(money(room.price)),
-                        onTap: room.active
-                            ? () => context.go('/book/${room.id}')
-                            : null,
+                        Text(
+                          '${home.address}, ${home.city}',
+                          style: const TextStyle(color: muted),
+                        ),
+                        const SizedBox(height: 10),
+                        if (homeReviews.isNotEmpty) ...[
+                          _ReviewRatingSummary(homeReviews),
+                          const SizedBox(height: 10),
+                        ],
+                        Text(home.description),
+                        const SizedBox(height: 10),
+                        Text('Tiện nghi: ${home.amenities.join(' · ')}'),
+                        const SectionHeading(
+                          'Danh sách phòng',
+                          'Chọn phòng phù hợp với chuyến đi.',
+                        ),
+                        if (homeRooms.isEmpty)
+                          const EmptyState('Homestay chưa có phòng.'),
+                        for (final room in homeRooms)
+                          Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: ListTile(
+                              leading: Icon(
+                                room.active
+                                    ? Icons.bed_outlined
+                                    : Icons.build_outlined,
+                                color: room.active ? brand : muted,
+                              ),
+                              title: Text(room.name),
+                              subtitle: Text(
+                                '${room.capacity} khách · ${room.active ? 'Đang mở đặt phòng' : 'Đang bảo trì'}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(money(room.price)),
+                                  if (room.active) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.chevron_right),
+                                  ],
+                                ],
+                              ),
+                              onTap: room.active
+                                  ? () => context.go('/book/${room.id}')
+                                  : null,
+                            ),
+                          ),
+                        const SectionHeading(
+                          'Đánh giá',
+                          'Chia sẻ từ khách đã lưu trú.',
+                        ),
+                        _FirebaseReviewSummary(homeReviews),
+                        if (homeReviews.isEmpty)
+                          const Text('Chưa có đánh giá.'),
+                        for (final review in homeReviews.reversed)
+                          Card(
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.account_circle_outlined,
+                              ),
+                              title: Text(
+                                '${review.guestName} · ${review.rating}/5',
+                              ),
+                              subtitle: Text(review.comment),
+                            ),
+                          ),
+                        const SizedBox(height: 110),
+                      ],
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SafeArea(
+                      top: false,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x140F172A),
+                              blurRadius: 16,
+                              offset: Offset(0, -4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1180),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Giá từ / đêm',
+                                          style: TextStyle(
+                                            color: muted,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Text(
+                                          cheapestRoom == null
+                                              ? 'Chưa mở phòng'
+                                              : money(cheapestRoom.price),
+                                          style: const TextStyle(
+                                            color: brand,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  FilledButton.icon(
+                                    key: const ValueKey('firebase-detail-book'),
+                                    onPressed: cheapestRoom == null
+                                        ? null
+                                        : () => context.go(
+                                            '/book/${cheapestRoom.id}',
+                                          ),
+                                    icon: const Icon(Icons.bed_outlined),
+                                    label: Text(
+                                      cheapestRoom == null
+                                          ? 'Chưa có phòng trống'
+                                          : 'Đặt phòng',
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  const SectionHeading(
-                    'Đánh giá',
-                    'Chia sẻ từ khách đã lưu trú.',
                   ),
-                  if (homeReviews.isEmpty) const Text('Chưa có đánh giá.'),
-                  for (final review in homeReviews.reversed)
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.account_circle_outlined),
-                        title: Text('${review.guestName} · ${review.rating}/5'),
-                        subtitle: Text(review.comment),
-                      ),
-                    ),
                 ],
               );
             },
           ),
         );
       },
+    );
+  }
+}
+
+class _FirebaseReviewSummary extends ConsumerStatefulWidget {
+  const _FirebaseReviewSummary(this.reviews);
+  final List<StayReview> reviews;
+
+  @override
+  ConsumerState<_FirebaseReviewSummary> createState() =>
+      _FirebaseReviewSummaryState();
+}
+
+class _FirebaseReviewSummaryState
+    extends ConsumerState<_FirebaseReviewSummary> {
+  bool _busy = false;
+  String? _summary;
+
+  Future<void> _summarize() async {
+    setState(() {
+      _busy = true;
+      _summary = null;
+    });
+    final result = await ref.read(aiServiceProvider).summarizeReviews([
+      for (final review in widget.reviews)
+        '${review.rating}/5 sao: ${review.comment}',
+    ]);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (result == AiService.unavailableMessage ||
+        result == AiService.friendlyErrorMessage) {
+      showError(
+        context,
+        result == AiService.unavailableMessage
+            ? 'Tính năng AI chưa khả dụng. Bạn vẫn xem được đánh giá bên dưới.'
+            : 'Chưa thể kết nối AI. Bạn vẫn xem được đánh giá bên dưới.',
+      );
+      return;
+    }
+    setState(() => _summary = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.reviews.length < 3) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_summary case final summary?)
+          Card(
+            color: const Color(0xFFF5F0FF),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.auto_awesome, color: Color(0xFF68418A)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tóm tắt từ AI',
+                          style: TextStyle(
+                            color: Color(0xFF68418A),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(summary),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _busy ? null : _summarize,
+            icon: _busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome, size: 18),
+            label: Text(_busy ? 'Đang đọc đánh giá…' : 'Tóm tắt bằng AI'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> _toggleDetailFavorite(
+  BuildContext context,
+  WidgetRef ref,
+  String? uid,
+  String homeId,
+  bool currentlyFavorite,
+) async {
+  if (uid == null) {
+    final next = {...ref.read(favoritesProvider)};
+    currentlyFavorite ? next.remove(homeId) : next.add(homeId);
+    ref.read(favoritesProvider.notifier).state = next;
+    return;
+  }
+  final favoriteRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('favorites')
+      .doc(homeId);
+  try {
+    if (currentlyFavorite) {
+      await favoriteRef.delete();
+    } else {
+      await favoriteRef.set({
+        'homestayId': homeId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  } catch (_) {
+    if (context.mounted)
+      showError(context, 'Chưa lưu được homestay yêu thích.');
+  }
+}
+
+class _ReviewRatingSummary extends StatelessWidget {
+  const _ReviewRatingSummary(this.reviews);
+  final List<StayReview> reviews;
+
+  @override
+  Widget build(BuildContext context) {
+    final average =
+        reviews.fold<int>(0, (sum, review) => sum + review.rating) /
+        reviews.length;
+    return Row(
+      children: [
+        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
+        const SizedBox(width: 4),
+        Text(
+          average.toStringAsFixed(1),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '(${reviews.length} đánh giá)',
+          style: const TextStyle(color: muted),
+        ),
+      ],
     );
   }
 }
