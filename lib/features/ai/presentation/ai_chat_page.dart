@@ -6,6 +6,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../homestay/domain/catalog.dart';
+import '../../booking/presentation/firestore_repository_provider.dart';
 import '../domain/ai_message.dart';
 import 'ai_provider.dart';
 
@@ -125,10 +126,29 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(useFirebaseBackendProvider)) {
+      final homes = ref.watch(firestoreHomestaysProvider);
+      final rooms = ref.watch(firestoreRoomsProvider);
+      return homes.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) =>
+            const Center(child: Text('Không tải được danh sách homestay.')),
+        data: (items) => rooms.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) =>
+              const Center(child: Text('Không tải được danh sách phòng.')),
+          data: (roomItems) => _buildChat(items, roomItems),
+        ),
+      );
+    }
     ref.watch(changesProvider);
     final repo = ref.watch(repositoryProvider);
     final homes = repo.homestays.toList();
     final rooms = repo.rooms.toList();
+    return _buildChat(homes, rooms);
+  }
+
+  Widget _buildChat(List<Homestay> homes, List<Room> rooms) {
     return SafeArea(
       child: Column(
         children: [

@@ -31,6 +31,10 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'email'])
         && request.resource.data.email == request.auth.token.email;
       allow delete: if false;
+
+      match /favorites/{homestayId} {
+        allow read, write: if isSelf(uid);
+      }
     }
 
     match /homestays/{homestayId} {

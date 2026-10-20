@@ -12,6 +12,8 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/booking/presentation/booking_form_page.dart';
 import '../../features/booking/presentation/bookings_page.dart';
+import '../../features/booking/presentation/firebase_pages.dart';
+import '../../features/booking/presentation/firestore_repository_provider.dart';
 import '../../features/dashboard/presentation/host_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
 import '../../features/homestay/presentation/detail_page.dart';
@@ -59,26 +61,50 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) =>
             AppShell(path: state.uri.path, child: child),
         routes: [
-          GoRoute(path: '/', builder: (_, _) => const ExplorePage()),
+          GoRoute(
+            path: '/',
+            builder: (_, _) => ref.read(useFirebaseBackendProvider)
+                ? const FirebaseExplorePage()
+                : const ExplorePage(),
+          ),
           GoRoute(
             path: '/favorites',
-            builder: (_, _) => const ExplorePage(favoritesOnly: true),
+            builder: (_, _) => ref.read(useFirebaseBackendProvider)
+                ? const FirebaseExplorePage(favoritesOnly: true)
+                : const ExplorePage(favoritesOnly: true),
           ),
           GoRoute(
             path: '/homestays/:id',
-            builder: (_, state) => DetailPage(id: state.pathParameters['id']!),
+            builder: (_, state) => ref.read(useFirebaseBackendProvider)
+                ? FirebaseDetailPage(id: state.pathParameters['id']!)
+                : DetailPage(id: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/book/:roomId',
-            builder: (_, state) =>
-                BookingFormPage(roomId: state.pathParameters['roomId']!),
+            builder: (_, state) => ref.read(useFirebaseBackendProvider)
+                ? FirebaseBookingFormPage(
+                    roomId: state.pathParameters['roomId']!,
+                  )
+                : BookingFormPage(roomId: state.pathParameters['roomId']!),
           ),
-          GoRoute(path: '/bookings', builder: (_, _) => const BookingsPage()),
-          GoRoute(path: '/host', builder: (_, _) => const HostPage()),
+          GoRoute(
+            path: '/bookings',
+            builder: (_, _) => ref.read(useFirebaseBackendProvider)
+                ? const FirebaseBookingsPage()
+                : const BookingsPage(),
+          ),
+          GoRoute(
+            path: '/host',
+            builder: (_, _) => ref.read(useFirebaseBackendProvider)
+                ? const FirebaseHostPage()
+                : const HostPage(),
+          ),
           GoRoute(path: '/ai-chat', builder: (_, _) => const AiChatPage()),
           GoRoute(
             path: '/host/calendar',
-            builder: (_, _) => const CalendarPage(),
+            builder: (_, _) => ref.read(useFirebaseBackendProvider)
+                ? const FirebaseCalendarPage()
+                : const CalendarPage(),
           ),
           GoRoute(path: '/profile', builder: (_, _) => const ProfilePage()),
         ],

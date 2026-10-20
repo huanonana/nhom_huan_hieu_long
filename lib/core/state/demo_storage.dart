@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/booking/data/demo_booking_repository.dart';
 import '../../features/auth/presentation/auth_provider.dart';
+import '../../features/booking/presentation/firestore_repository_provider.dart';
 import 'app_state.dart';
 
 final storageNoticeProvider = StateProvider<String?>((ref) => null);
@@ -43,6 +44,7 @@ class DemoStorage {
     final container = ProviderContainer(
       overrides: [
         authModeProvider.overrideWithValue(firebaseAuth),
+        useFirebaseBackendProvider.overrideWithValue(firebaseAuth),
         repositoryProvider.overrideWithValue(repository),
         favoritesProvider.overrideWith((ref) => favorites),
       ],

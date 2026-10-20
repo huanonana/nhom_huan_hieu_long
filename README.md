@@ -111,11 +111,16 @@ flutterfire configure --project=hhl-stay-home-2026-23010895 --platforms=android,
 ```
 
 `lib/firebase_options.dart` và `android/app/google-services.json` được sinh bởi
-FlutterFire CLI. Cloud Storage chưa bật: Firebase hiện yêu cầu gắn billing
-account và chuyển project sang Blaze để tạo bucket. Các màn hình danh sách,
-đặt phòng và quản lý hiện vẫn dùng repository demo; Auth và repository
-Firestore đã sẵn sàng để tiếp tục chuyển từng màn hình. Không commit khóa bí
-mật hoặc credential cá nhân.
+FlutterFire CLI. Đăng ký bằng email, chọn vai trò Khách hoặc Chủ nhà; hồ sơ,
+homestay, phòng, yêu thích, đơn đặt, lịch giữ phòng và đánh giá được đọc/ghi
+qua Firebase Auth và Cloud Firestore. Quy tắc Firestore nằm trong
+`firestore.rules`; cập nhật bằng `firebase deploy --only firestore:rules
+--project hhl-stay-home-2026-23010895`.
+
+Cloud Storage chưa bật: Firebase đang yêu cầu liên kết billing account và
+nâng project lên gói Blaze trước khi tạo bucket. Ảnh homestay hiện dùng asset
+cục bộ nên app vẫn hoạt động khi chưa bật Storage; chức năng tải ảnh lên chưa
+khả dụng. Không commit khóa bí mật hoặc credential cá nhân.
 
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
