@@ -182,6 +182,7 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
                   return _EmptyStays(
                     favoritesOnly: widget.favoritesOnly,
                     hasHomes: allHomes.isNotEmpty,
+                    onHostManagement: () => context.go('/host'),
                   );
                 }
                 return Column(
@@ -484,9 +485,14 @@ class _TrustItem extends StatelessWidget {
 }
 
 class _EmptyStays extends StatelessWidget {
-  const _EmptyStays({required this.favoritesOnly, required this.hasHomes});
+  const _EmptyStays({
+    required this.favoritesOnly,
+    required this.hasHomes,
+    required this.onHostManagement,
+  });
   final bool favoritesOnly;
   final bool hasHomes;
+  final VoidCallback onHostManagement;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -515,10 +521,18 @@ class _EmptyStays extends StatelessWidget {
           Text(
             favoritesOnly
                 ? 'Lưu một homestay bạn thích để xem lại nhanh tại đây.'
-                : 'HHL Stay đang cập nhật danh sách homestay. Hãy chọn một điểm đến khác hoặc quay lại sau nhé.',
+                : 'Chưa có homestay được đăng trên hệ thống. Chủ nhà có thể mở trang quản lý để thêm nơi nghỉ và phòng.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: muted, fontSize: 12, height: 1.4),
           ),
+          if (!favoritesOnly) ...[
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: onHostManagement,
+              icon: const Icon(Icons.storefront_outlined),
+              label: const Text('Dành cho chủ nhà · Mở quản lý'),
+            ),
+          ],
         ],
       ),
     ),

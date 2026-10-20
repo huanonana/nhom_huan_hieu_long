@@ -182,19 +182,19 @@ class AppShell extends ConsumerWidget {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () => context.go('/profile'),
+            onPressed: () => context.go(host ? '/profile' : '/host'),
             icon: Icon(
               host
                   ? Icons.admin_panel_settings_outlined
                   : authMode && currentUser == null
-                  ? Icons.login_rounded
+                  ? Icons.storefront_outlined
                   : Icons.person_outline,
             ),
             label: Text(
               host
                   ? 'Admin'
                   : authMode && currentUser == null
-                  ? 'Đăng nhập'
+                  ? 'Chủ nhà'
                   : 'Tài khoản',
             ),
           ),
