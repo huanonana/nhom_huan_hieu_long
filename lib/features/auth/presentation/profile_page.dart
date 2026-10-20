@@ -20,8 +20,39 @@ class ProfilePage extends ConsumerWidget {
                 ? const PageBody(children: [Text('Bạn chưa đăng nhập.')])
                 : _AuthenticatedProfile(user: user),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const PageBody(
-              children: [Text('Không tải được hồ sơ. Vui lòng đăng nhập lại.')],
+            error: (error, _) => PageBody(
+              maxWidth: 1000,
+              children: [
+                const SizedBox(height: 36),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.cloud_off_outlined,
+                          size: 38,
+                          color: muted,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Chưa tải được hồ sơ tài khoản.'),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$error',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: muted, fontSize: 12),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => ref.invalidate(currentUserProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Tải lại hồ sơ'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
     }
@@ -237,6 +268,7 @@ class _AuthenticatedProfile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageBody(
+    maxWidth: 1000,
     children: [
       const SizedBox(height: 12),
       CircleAvatar(

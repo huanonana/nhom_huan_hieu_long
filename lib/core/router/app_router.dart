@@ -243,7 +243,7 @@ class AppShell extends ConsumerWidget {
         child: Center(
           heightFactor: 1,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 1080),
             child: NavigationBar(
               selectedIndex: selected < 0 ? 0 : selected,
               onDestinationSelected: (i) => context.go(paths[i]),
