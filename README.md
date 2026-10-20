@@ -97,24 +97,25 @@ sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
 
 ## Cấu hình Firebase
 
-Các repository Firebase và màn hình đăng nhập đã có trong mã nguồn, nhưng
-app vẫn khởi động ở chế độ demo cho đến khi tạo cấu hình theo Firebase project.
-Trong Firebase Console, bật Email/Password ở Authentication và tạo Firestore
-Database cùng Storage. Sau đó chạy tại thư mục gốc repo:
+Project Firebase hiện dùng là `hhl-stay-home-2026-23010895` (HHL Homestay).
+Firebase đã được khởi tạo trong app; Android và Web đã đăng ký, Authentication
+Email/Password đã bật, và Firestore mặc định được đặt tại Singapore
+(`asia-southeast1`). Rules nằm trong `firestore.rules`; dữ liệu danh mục được đọc
+công khai, còn thao tác ghi yêu cầu đăng nhập và kiểm tra vai trò.
+
+Để tạo lại cấu hình trên máy khác, đăng nhập tài khoản có quyền với project rồi
+chạy:
 
 ```bash
-npm install -g firebase-tools
-firebase login
-dart pub global activate flutterfire_cli
-flutterfire configure
+flutterfire configure --project=hhl-stay-home-2026-23010895 --platforms=android,web
 ```
 
-Trong `flutterfire configure`, chọn đúng project, chọn nền tảng Android và Web,
-rồi để công cụ tạo `lib/firebase_options.dart`. Không tự tạo file này bằng giá
-trị mẫu. Sau khi file được sinh, cần nối `Firebase.initializeApp(options:
-DefaultFirebaseOptions.currentPlatform)` vào `lib/main.dart` trước `runApp`,
-kiểm tra app khởi động rồi mới bật đăng nhập thật. Các repository demo vẫn được
-giữ để so sánh. Không commit thông tin bí mật.
+`lib/firebase_options.dart` và `android/app/google-services.json` được sinh bởi
+FlutterFire CLI. Cloud Storage chưa bật: Firebase hiện yêu cầu gắn billing
+account và chuyển project sang Blaze để tạo bucket. Các màn hình danh sách,
+đặt phòng và quản lý hiện vẫn dùng repository demo; Auth và repository
+Firestore đã sẵn sàng để tiếp tục chuyển từng màn hình. Không commit khóa bí
+mật hoặc credential cá nhân.
 
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
