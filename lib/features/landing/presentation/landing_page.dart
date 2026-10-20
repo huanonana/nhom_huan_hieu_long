@@ -40,7 +40,9 @@ class LandingPage extends StatelessWidget {
                     compact ? 20 : 40,
                     64,
                   ),
-                  child: compact ? const _MobileHero() : const _DesktopHero(),
+                  child: _Entrance(
+                    child: compact ? const _MobileHero() : const _DesktopHero(),
+                  ),
                 ),
               ),
             ),
@@ -377,8 +379,52 @@ class _TrustStrip extends StatelessWidget {
   );
 }
 
-class _StayDashboardPreview extends StatelessWidget {
+class _Entrance extends StatelessWidget {
+  const _Entrance({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 850),
+    curve: Curves.easeOutCubic,
+    child: child,
+    builder: (context, value, child) => Opacity(
+      opacity: value,
+      child: Transform.translate(
+        offset: Offset(0, 30 * (1 - value)),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _StayDashboardPreview extends StatefulWidget {
   const _StayDashboardPreview();
+
+  @override
+  State<_StayDashboardPreview> createState() => _StayDashboardPreviewState();
+}
+
+class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
+  final _pageController = PageController();
+  int _activePhoto = 0;
+  late final _photos = photosFor('sea').take(3).toList();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _nextPhoto() {
+    final next = (_activePhoto + 1) % _photos.length;
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeInOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -453,7 +499,17 @@ class _StayDashboardPreview extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(photosFor('sea').first.asset, fit: BoxFit.cover),
+                PageView.builder(
+                  controller: _pageController,
+                  itemCount: _photos.length,
+                  onPageChanged: (index) =>
+                      setState(() => _activePhoto = index),
+                  itemBuilder: (context, index) => Image.asset(
+                    _photos[index].asset,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                ),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -475,17 +531,22 @@ class _StayDashboardPreview extends StatelessWidget {
                 Positioned(
                   right: 14,
                   top: 14,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border_rounded,
-                      color: brand,
-                      size: 19,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _nextPhoto,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: brand,
+                          size: 19,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -516,6 +577,25 @@ class _StayDashboardPreview extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 18,
+                  child: Row(
+                    children: List.generate(_photos.length, (index) {
+                      final selected = index == _activePhoto;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        width: selected ? 19 : 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(left: 4),
+                        decoration: BoxDecoration(
+                          color: selected ? Colors.white : Colors.white60,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      );
+                    }),
                   ),
                 ),
               ],
