@@ -274,149 +274,184 @@ class _WelcomeBanner extends StatelessWidget {
   final VoidCallback onExplore;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(28),
-    child: SizedBox(
-      height: 270,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(photosFor('phuquoc').first.asset, fit: BoxFit.cover),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerRight,
-                end: Alignment.centerLeft,
-                colors: [Color(0x15000000), Color(0xCC111713)],
-                stops: [0, .92],
-              ),
-            ),
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(18, 22, 18, 16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(30),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFFFF0E4), Color(0xFFFFFBF7), Color(0xFFF5F4FF)],
+      ),
+      border: Border.all(color: const Color(0xFFF0E7DE)),
+    ),
+    child: Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF22243A),
+            borderRadius: BorderRadius.circular(30),
           ),
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .94),
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 14,
-                    offset: Offset(0, 5),
-                  ),
-                ],
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: Color(0xFFFFC18C),
+                size: 14,
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.star_rounded, color: Color(0xFFE39A28), size: 17),
-                  SizedBox(width: 4),
-                  Text(
-                    'Chọn lọc cho bạn',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: ink,
-                    ),
-                  ),
-                ],
+              SizedBox(width: 7),
+              Text(
+                'HHL STAY  ·  HOMESTAY VIỆT NAM',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .75,
+                ),
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 19),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+        ),
+        const SizedBox(height: 17),
+        const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: 'Tìm chốn nghỉ đẹp\n'),
+              TextSpan(text: 'cho chuyến đi '),
+              TextSpan(
+                text: 'đúng gu.',
+                style: TextStyle(color: brand),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: ink,
+            fontSize: 29,
+            height: 1.08,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Khám phá những không gian lưu trú có chất riêng tại các điểm đến yêu thích.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: muted, fontSize: 13, height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: onExplore,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF5147D9),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 3,
+            shadowColor: const Color(0x665147D9),
+          ),
+          icon: const Icon(Icons.explore_rounded, size: 19),
+          label: const Text('Khám phá homestay'),
+        ),
+        const SizedBox(height: 18),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(23),
+          child: SizedBox(
+            height: 188,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
+                Image.asset(
+                  photosFor('phuquoc').first.asset,
+                  fit: BoxFit.cover,
+                ),
+                const DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .17),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: .28),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x08000000), Color(0x88000000)],
                     ),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: _HeroTag(
+                    icon: Icons.bedroom_parent_outlined,
+                    label: 'Không gian nghỉ dưỡng',
+                  ),
+                ),
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: 13,
+                  child: Row(
                     children: [
-                      Icon(
-                        Icons.waves_rounded,
-                        color: Color(0xFFFFD7A9),
-                        size: 14,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'HHL STAY  ·  KỲ NGHỈ CỦA RIÊNG BẠN',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .55,
+                      const Expanded(
+                        child: Text(
+                          'Một nơi chốn,\nmột câu chuyện riêng.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            height: 1.1,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 13),
-                const Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: 'Tìm chốn nghỉ đẹp,\n'),
-                      TextSpan(text: 'đi trốn '),
-                      TextSpan(
-                        text: 'đúng gu.',
-                        style: TextStyle(color: Color(0xFFFFC18C)),
+                      IconButton.filledTonal(
+                        onPressed: onExplore,
+                        tooltip: 'Khám phá homestay',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: brand,
+                        ),
+                        icon: const Icon(Icons.arrow_forward_rounded),
                       ),
                     ],
                   ),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    height: 1.04,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Không gian có chất riêng cho chuyến đi tiếp theo.',
-                  style: TextStyle(
-                    color: Color(0xFFF2F2EF),
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                FilledButton.icon(
-                  onPressed: onExplore,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: brand,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 3,
-                    shadowColor: brand.withValues(alpha: .35),
-                  ),
-                  icon: const Icon(Icons.search_rounded, size: 18),
-                  label: const Text('Khám phá homestay'),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _HeroTag extends StatelessWidget {
+  const _HeroTag({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .93),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: brand, size: 15),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: ink,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     ),
   );
 }

@@ -25,7 +25,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       if (ref.read(authModeProvider)) {
         final path = state.uri.path;
-        final onAuthPage = path == '/login' || path == '/register';
+        final onAdminLogin = path == '/admin/login';
+        final onAuthPage =
+            path == '/login' || path == '/register' || onAdminLogin;
         final user = ref.read(currentUserProvider).valueOrNull;
         if (user == null) {
           if (onAuthPage) return null;
@@ -35,7 +37,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               path == '/bookings' ||
               path == '/profile';
           if (!requiresAccount) return null;
-          return '/login?from=${Uri.encodeComponent(state.uri.toString())}';
+          final loginPath = path.startsWith('/host')
+              ? '/admin/login'
+              : '/login';
+          return '$loginPath?from=${Uri.encodeComponent(state.uri.toString())}';
+        }
+        if (onAdminLogin) {
+          if (user.role == AppUserRole.host) {
+            final requested = state.uri.queryParameters['from'];
+            return requested != null && requested.startsWith('/host')
+                ? requested
+                : '/host';
+          }
+          // Keep guests on the admin sign-in form so it can explain the role
+          // mismatch and let them switch to a host account.
+          return null;
         }
         if (onAuthPage) {
           final requested = state.uri.queryParameters['from'];
@@ -70,6 +86,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(
+        path: '/admin/login',
+        builder: (_, _) => const LoginPage(adminMode: true),
+      ),
       GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
       ShellRoute(
         builder: (context, state, child) =>
@@ -182,19 +202,25 @@ class AppShell extends ConsumerWidget {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () => context.go(host ? '/profile' : '/host'),
+            onPressed: () => context.go(
+              host
+                  ? '/profile'
+                  : authMode && currentUser == null
+                  ? '/login'
+                  : '/profile',
+            ),
             icon: Icon(
               host
                   ? Icons.admin_panel_settings_outlined
                   : authMode && currentUser == null
-                  ? Icons.storefront_outlined
+                  ? Icons.login_rounded
                   : Icons.person_outline,
             ),
             label: Text(
               host
                   ? 'Admin'
                   : authMode && currentUser == null
-                  ? 'Chủ nhà'
+                  ? 'Đăng nhập'
                   : 'Tài khoản',
             ),
           ),

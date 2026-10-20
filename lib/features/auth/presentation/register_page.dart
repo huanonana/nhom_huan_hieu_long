@@ -22,6 +22,17 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   AppUserRole _role = AppUserRole.guest;
   bool _loading = false;
   String? _error;
+  bool _initialRoleApplied = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialRoleApplied) return;
+    _initialRoleApplied = true;
+    if (GoRouterState.of(context).uri.queryParameters['role'] == 'host') {
+      _role = AppUserRole.host;
+    }
+  }
 
   @override
   void dispose() {
