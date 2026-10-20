@@ -27,14 +27,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         final path = state.uri.path;
         final onAuthPage = path == '/login' || path == '/register';
         final user = ref.read(currentUserProvider).valueOrNull;
-        if (user == null) return onAuthPage ? null : '/login';
-        if (onAuthPage) return user.role == AppUserRole.host ? '/host' : '/';
+        if (user == null) {
+          if (onAuthPage) return null;
+          final requiresAccount =
+              path.startsWith('/book/') ||
+              path.startsWith('/host') ||
+              path == '/bookings' ||
+              path == '/profile';
+          if (!requiresAccount) return null;
+          return '/login?from=${Uri.encodeComponent(state.uri.toString())}';
+        }
+        if (onAuthPage) {
+          final requested = state.uri.queryParameters['from'];
+          if (requested != null &&
+              requested.startsWith('/') &&
+              (user.role == AppUserRole.host ||
+                  !requested.startsWith('/host'))) {
+            return requested;
+          }
+          return user.role == AppUserRole.host ? '/host' : '/';
+        }
         if (user.role != AppUserRole.host && path.startsWith('/host')) {
           return '/';
-        }
-        if (user.role == AppUserRole.host &&
-            (path == '/' || path == '/favorites')) {
-          return '/host';
         }
         return null;
       }
@@ -126,11 +140,15 @@ class AppShell extends ConsumerWidget {
   final Widget child;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final host = ref.watch(authModeProvider)
-        ? ref.watch(currentUserProvider).valueOrNull?.role == AppUserRole.host
+    final authMode = ref.watch(authModeProvider);
+    final currentUser = authMode
+        ? ref.watch(currentUserProvider).valueOrNull
+        : null;
+    final host = authMode
+        ? currentUser?.role == AppUserRole.host
         : ref.watch(roleProvider) == DemoRole.host;
     final paths = host
-        ? ['/host', '/bookings', '/profile']
+        ? ['/host', '/', '/bookings', '/profile']
         : ['/', '/favorites', '/bookings', '/profile'];
     final selected = paths.indexOf(path);
     return Scaffold(
@@ -166,9 +184,19 @@ class AppShell extends ConsumerWidget {
           TextButton.icon(
             onPressed: () => context.go('/profile'),
             icon: Icon(
-              host ? Icons.admin_panel_settings_outlined : Icons.person_outline,
+              host
+                  ? Icons.admin_panel_settings_outlined
+                  : authMode && currentUser == null
+                  ? Icons.login_rounded
+                  : Icons.person_outline,
             ),
-            label: Text(host ? 'Admin' : 'Khách'),
+            label: Text(
+              host
+                  ? 'Admin'
+                  : authMode && currentUser == null
+                  ? 'Đăng nhập'
+                  : 'Tài khoản',
+            ),
           ),
         ],
       ),
@@ -204,6 +232,11 @@ class AppShell extends ConsumerWidget {
                   const NavigationDestination(
                     icon: Icon(Icons.favorite_outline),
                     label: 'Yêu thích',
+                  )
+                else
+                  const NavigationDestination(
+                    icon: Icon(Icons.explore_outlined),
+                    label: 'Khám phá',
                   ),
                 const NavigationDestination(
                   icon: Icon(Icons.event_note),

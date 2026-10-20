@@ -46,7 +46,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             role: _role,
             displayName: _name.text,
           );
-      if (mounted) context.go('/');
+      if (mounted) {
+        final requested = GoRouterState.of(context).uri.queryParameters['from'];
+        context.go(requested ?? (_role == AppUserRole.host ? '/host' : '/'));
+      }
     } catch (error) {
       if (mounted) setState(() => _error = authErrorMessage(error));
     } finally {
@@ -153,8 +156,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       : const Text('Đăng ký'),
                 ),
                 TextButton(
-                  onPressed: () => context.go('/login'),
+                  onPressed: () {
+                    final from = GoRouterState.of(
+                      context,
+                    ).uri.queryParameters['from'];
+                    context.go(
+                      from == null
+                          ? '/login'
+                          : '/login?from=${Uri.encodeComponent(from)}',
+                    );
+                  },
                   child: const Text('Đã có tài khoản? Đăng nhập'),
+                ),
+                TextButton.icon(
+                  onPressed: () => context.go('/'),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('Tiếp tục xem homestay'),
                 ),
               ],
             ),

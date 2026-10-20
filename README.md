@@ -117,6 +117,11 @@ qua Firebase Auth và Cloud Firestore. Quy tắc Firestore nằm trong
 `firestore.rules`; cập nhật bằng `firebase deploy --only firestore:rules
 --project hhl-stay-home-2026-23010895`.
 
+Khách có thể mở trang Khám phá, xem chi tiết homestay và hỏi chatbot mà chưa
+cần đăng nhập. App yêu cầu đăng nhập khi khách bắt đầu đặt phòng để lưu thông
+tin đơn; sau khi đăng nhập/đăng ký, app quay lại đúng luồng đặt phòng. Các
+trang quản lý và dữ liệu đơn cá nhân vẫn yêu cầu tài khoản phù hợp.
+
 Cloud Storage chưa bật: Firebase đang yêu cầu liên kết billing account và
 nâng project lên gói Blaze trước khi tạo bucket. Ảnh homestay hiện dùng asset
 cục bộ nên app vẫn hoạt động khi chưa bật Storage; chức năng tải ảnh lên chưa

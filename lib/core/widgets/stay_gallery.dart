@@ -17,7 +17,13 @@ const _preferredCover = <String, int>{
 };
 
 List<StayImage> photosFor(String id) {
-  final photos = stayPhotos[id];
+  var photos = stayPhotos[id];
+  if (photos == null || photos.isEmpty) {
+    final cityKey = stayPhotos.keys
+        .where((key) => id.startsWith('$key-'))
+        .firstOrNull;
+    photos = cityKey == null ? stayPhotos['sea'] : stayPhotos[cityKey];
+  }
   if (photos == null || photos.isEmpty) return const <StayImage>[];
   final coverIndex = _preferredCover[id] ?? 0;
   if (coverIndex == 0 || coverIndex >= photos.length) return photos;

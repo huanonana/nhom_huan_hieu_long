@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
+import '../../../core/widgets/stay_gallery.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../homestay/domain/catalog.dart';
 import '../../review/domain/review.dart';
@@ -26,6 +27,16 @@ class FirebaseExplorePage extends ConsumerStatefulWidget {
 
 class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
   String _query = '';
+  String _city = 'Tất cả';
+  final _resultsKey = GlobalKey();
+  static const _destinations = <(String, String)>[
+    ('Đà Lạt', 'pine'),
+    ('Đà Nẵng', 'sea'),
+    ('Hội An', 'garden'),
+    ('Sa Pa', 'sapa'),
+    ('Hà Nội', 'hanoi'),
+    ('Phú Quốc', 'phuquoc'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -34,26 +45,110 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
     final reviews = ref.watch(firestoreReviewsProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
     final favorites = user == null
-        ? const <String>{}
+        ? ref.watch(favoritesProvider)
         : ref.watch(favoriteIdsProvider(user.uid)).valueOrNull ??
               const <String>{};
     return PageBody(
-      maxWidth: 480,
+      maxWidth: 520,
       children: [
+        if (!widget.favoritesOnly) ...[
+          _WelcomeBanner(onExplore: _scrollToStays),
+          const SizedBox(height: 20),
+        ],
         Text(
-          widget.favoritesOnly ? 'Nơi đã lưu' : 'Tìm chỗ nghỉ',
+          widget.favoritesOnly ? 'Nơi bạn đã lưu' : 'Chọn nơi nghỉ phù hợp',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 5),
+        Text(
+          widget.favoritesOnly
+              ? 'Những chỗ nghỉ bạn muốn quay lại.'
+              : 'Không gian đẹp, giá rõ ràng và đặt phòng an tâm.',
+          style: const TextStyle(color: muted),
+        ),
+        const SizedBox(height: 14),
         TextField(
           onChanged: (value) =>
               setState(() => _query = value.trim().toLowerCase()),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             prefixIcon: Icon(Icons.search),
-            hintText: 'Tìm homestay hoặc thành phố',
+            hintText: 'Thành phố, homestay hoặc khu vực',
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: Color(0xFFE9E5E0)),
+            ),
           ),
         ),
-        const SizedBox(height: 16),
+        if (!widget.favoritesOnly) ...[
+          const SectionHeading(
+            'Điểm đến nổi bật',
+            'Chạm một nơi để lọc homestay.',
+          ),
+          SizedBox(
+            height: 122,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _destinations.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final destination = _destinations[index];
+                final selected = _city == destination.$1;
+                final photo = photosFor(destination.$2).first;
+                return InkWell(
+                  onTap: () => setState(
+                    () => _city = selected ? 'Tất cả' : destination.$1,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Ink(
+                    width: 132,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      image: DecorationImage(
+                        image: AssetImage(photo.asset),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: selected ? brand : Colors.transparent,
+                          width: 3,
+                        ),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xB8000000)],
+                        ),
+                      ),
+                      alignment: Alignment.bottomLeft,
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        destination.$1,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+        const SectionHeading(
+          'Homestay dành cho bạn',
+          'Khám phá nơi ở được chủ nhà đăng tải.',
+        ),
+        Container(key: _resultsKey),
         homes.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
@@ -72,16 +167,19 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
                       .toLowerCase()
                       .contains(_query);
                   return matched &&
+                      (_city == 'Tất cả' ||
+                          home.city.toLowerCase().contains(
+                            _city.toLowerCase(),
+                          )) &&
                       (!widget.favoritesOnly || favorites.contains(home.id)) &&
                       allRooms.any(
                         (room) => room.homestayId == home.id && room.active,
                       );
                 }).toList();
                 if (visible.isEmpty) {
-                  return EmptyState(
-                    widget.favoritesOnly
-                        ? 'Bạn chưa lưu homestay nào.'
-                        : 'Chưa có homestay phù hợp. Chủ nhà có thể thêm homestay trong trang Quản lý.',
+                  return _EmptyStays(
+                    favoritesOnly: widget.favoritesOnly,
+                    hasHomes: allHomes.isNotEmpty,
                   );
                 }
                 return Column(
@@ -96,9 +194,9 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
                             .where((review) => review.homestayId == home.id)
                             .toList(),
                         favorite: favorites.contains(home.id),
-                        onFavorite: user == null
-                            ? null
-                            : () => _toggleFavorite(user.uid, home.id),
+                        onFavorite: () => user == null
+                            ? _toggleLocalFavorite(home.id)
+                            : _toggleFavorite(user.uid, home.id),
                       ),
                   ],
                 );
@@ -117,6 +215,23 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
         ),
       ],
     );
+  }
+
+  void _scrollToStays() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _resultsKey.currentContext;
+      if (target != null)
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 350),
+        );
+    });
+  }
+
+  void _toggleLocalFavorite(String id) {
+    final next = {...ref.read(favoritesProvider)};
+    next.contains(id) ? next.remove(id) : next.add(id);
+    ref.read(favoritesProvider.notifier).state = next;
   }
 
   Future<void> _toggleFavorite(String uid, String homeId) async {
@@ -150,6 +265,129 @@ final favoriteIdsProvider = StreamProvider.family<Set<String>, String>(
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) => doc.id).toSet()),
 );
+
+class _WelcomeBanner extends StatelessWidget {
+  const _WelcomeBanner({required this.onExplore});
+  final VoidCallback onExplore;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: SizedBox(
+      height: 238,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(photosFor('phuquoc').first.asset, fit: BoxFit.cover),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x16000000), Color(0xC8000000)],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'HHL STAY · ĐI ĐÂU CŨNG CÓ CHỖ ĐẸP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Kỳ nghỉ đáng nhớ,\nbắt đầu từ đây.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 27,
+                    height: 1.08,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tìm không gian hợp gu cho chuyến đi tiếp theo.',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: onExplore,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: brand,
+                  ),
+                  icon: const Icon(Icons.search, size: 18),
+                  label: const Text('Khám phá homestay'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EmptyStays extends StatelessWidget {
+  const _EmptyStays({required this.favoritesOnly, required this.hasHomes});
+  final bool favoritesOnly;
+  final bool hasHomes;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          const CircleAvatar(
+            radius: 29,
+            backgroundColor: Color(0xFFFFE9DC),
+            child: Icon(Icons.holiday_village_outlined, color: brand, size: 28),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            favoritesOnly
+                ? 'Chưa có nơi nghỉ đã lưu'
+                : hasHomes
+                ? 'Chưa có phòng đang mở ở lựa chọn này'
+                : 'Đang chuẩn bị những chỗ nghỉ đầu tiên',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            favoritesOnly
+                ? 'Lưu một homestay bạn thích để xem lại nhanh tại đây.'
+                : 'HHL Stay đang cập nhật danh sách homestay. Hãy chọn một điểm đến khác hoặc quay lại sau nhé.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: muted, fontSize: 12, height: 1.4),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
 class _RemoteStayCard extends StatelessWidget {
   const _RemoteStayCard({
@@ -185,7 +423,40 @@ class _RemoteStayCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                StayPhoto(home.id, height: 210, radius: 0, label: false),
+                SizedBox(
+                  height: 220,
+                  child: PageView.builder(
+                    itemCount: photosFor(home.id).length,
+                    itemBuilder: (context, index) => Image.asset(
+                      photosFor(home.id)[index].asset,
+                      width: double.infinity,
+                      height: 220,
+                      fit: BoxFit.cover,
+                      semanticLabel: photosFor(home.id)[index].caption,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      home.city,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
                   top: 12,
                   right: 12,
@@ -1388,7 +1659,7 @@ class FirebaseHostPage extends ConsumerWidget {
     if (saved == true) {
       final id =
           home?.id ??
-          FirebaseFirestore.instance.collection('homestays').doc().id;
+          '${_cityPhotoKey(city.text)}-${FirebaseFirestore.instance.collection('homestays').doc().id}';
       try {
         await ref
             .read(firestoreHomestayRepositoryProvider)
@@ -1587,6 +1858,24 @@ class FirebaseHostPage extends ConsumerWidget {
       ) ??
       false;
 }
+
+String _cityPhotoKey(String city) => switch (city.trim().toLowerCase()) {
+  'đà lạt' || 'da lat' => 'pine',
+  'đà nẵng' || 'da nang' => 'sea',
+  'hội an' || 'hoi an' => 'garden',
+  'sa pa' || 'sapa' => 'sapa',
+  'hà nội' || 'ha noi' => 'hanoi',
+  'ninh bình' || 'ninh binh' => 'ninhbinh',
+  'hạ long' || 'ha long' => 'halong',
+  'huế' || 'hue' => 'hue',
+  'quy nhơn' || 'quy nhon' => 'quynhon',
+  'nha trang' => 'nhatrang',
+  'phú quốc' || 'phu quoc' => 'phuquoc',
+  'tp. hồ chí minh' || 'hồ chí minh' || 'ho chi minh' => 'saigon',
+  'vũng tàu' || 'vung tau' => 'vungtau',
+  'cần thơ' || 'can tho' => 'cantho',
+  _ => 'sea',
+};
 
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.label, required this.value});
