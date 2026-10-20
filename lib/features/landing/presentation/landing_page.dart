@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/stay_gallery.dart';
-import '../../ai/presentation/ai_assistant_button.dart';
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -30,8 +29,6 @@ class LandingPage extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 960;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      floatingActionButton: const AiAssistantButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SelectionArea(
         child: CustomScrollView(
           slivers: [
@@ -749,7 +746,11 @@ class _FeatureSection extends StatelessWidget {
             const SizedBox(height: 36),
             LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth < 640 ? 1 : 3;
+                final columns = constraints.maxWidth < 640
+                    ? 1
+                    : constraints.maxWidth < 960
+                    ? 2
+                    : 4;
                 final width =
                     (constraints.maxWidth - 16 * (columns - 1)) / columns;
                 return Wrap(
@@ -781,6 +782,17 @@ class _FeatureSection extends StatelessWidget {
                         title: 'Quản lý tập trung',
                         text:
                             'Chủ nhà theo dõi homestay, phòng, lịch đặt và doanh thu từ trang quản trị.',
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: _FeatureCard(
+                        icon: Icons.support_agent_rounded,
+                        title: 'Trợ lý AI',
+                        text:
+                            'Hỏi đáp để tìm chỗ nghỉ theo điểm đến, ngân sách và tiện nghi bạn cần.',
+                        actionLabel: 'Hỏi trợ lý AI',
+                        onPressed: () => context.push('/ai-chat'),
                       ),
                     ),
                   ],
@@ -815,10 +827,14 @@ class _FeatureCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.text,
+    this.actionLabel,
+    this.onPressed,
   });
   final IconData icon;
   final String title;
   final String text;
+  final String? actionLabel;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -861,6 +877,16 @@ class _FeatureCard extends StatelessWidget {
           text,
           style: const TextStyle(color: muted, height: 1.6, fontSize: 13),
         ),
+        if (actionLabel case final label?) ...[
+          const SizedBox(height: 14),
+          TextButton.icon(
+            key: const ValueKey('landing-ai-cta'),
+            onPressed: onPressed,
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
+            label: Text(label),
+            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          ),
+        ],
       ],
     ),
   );

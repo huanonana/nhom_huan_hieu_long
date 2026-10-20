@@ -125,9 +125,13 @@ void main() {
       UncontrolledProviderScope(container: container, child: const MyApp()),
     );
     await tester.pumpAndSettle();
-    container.read(routerProvider).go('/explore');
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('landing-ai-cta')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Tư vấn homestay bằng AI'));
+    await tester.tap(find.byKey(const ValueKey('landing-ai-cta')));
     await tester.pumpAndSettle();
     expect(find.text('Trợ lý chọn homestay'), findsOneWidget);
 

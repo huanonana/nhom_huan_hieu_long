@@ -20,9 +20,30 @@ void main() {
 
     expect(find.byType(LandingPage), findsOneWidget);
     expect(find.text('vui trọn chuyến đi.'), findsOneWidget);
-    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(LandingPage.featuresKey),
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Trợ lý AI'), findsOneWidget);
+    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsNothing);
+    final aiCta = find.text('Hỏi trợ lý AI');
+    await tester.scrollUntilVisible(
+      aiCta,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    final aiButton = find.byKey(const ValueKey('landing-ai-cta'));
+    expect(tester.widget<TextButton>(aiButton).onPressed, isNotNull);
     final exploreCta = find.text('Khám phá homestay');
-    await tester.ensureVisible(exploreCta);
+    await tester.scrollUntilVisible(
+      exploreCta,
+      -350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(exploreCta);
     await tester.pumpAndSettle();
 
@@ -31,6 +52,7 @@ void main() {
       '/explore',
     );
     expect(find.byType(ExplorePage), findsOneWidget);
+    expect(find.byTooltip('Tư vấn homestay bằng AI'), findsNothing);
     expect(find.text('Bắt đầu ngay'), findsNothing);
     expect(find.text('Dành cho chủ nhà'), findsNothing);
     await tester.pumpWidget(const SizedBox());

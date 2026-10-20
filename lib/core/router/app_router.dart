@@ -16,7 +16,6 @@ import '../../features/booking/presentation/firebase_pages.dart';
 import '../../features/booking/presentation/firestore_repository_provider.dart';
 import '../../features/dashboard/presentation/host_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
-import '../../features/ai/presentation/ai_assistant_button.dart';
 import '../../features/homestay/presentation/detail_page.dart';
 import '../../features/homestay/presentation/explore_page.dart';
 import '../../features/landing/presentation/landing_page.dart';
@@ -193,11 +192,6 @@ class AppShell extends ConsumerWidget {
         : ['/explore', '/favorites', '/bookings', '/profile'];
     final selected = paths.indexOf(path);
     return Scaffold(
-      floatingActionButton:
-          path == '/explore' && ref.watch(aiAssistantEntryVisibleProvider)
-          ? const AiAssistantButton()
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       appBar: AppBar(
         title: const FittedBox(fit: BoxFit.scaleDown, child: _HhlLogo()),
         actions: [
@@ -393,19 +387,12 @@ class _GuestWebShell extends ConsumerWidget {
           child: Stack(
             children: [
               Positioned.fill(child: child),
-              if (path == '/explore' &&
-                  ref.watch(aiAssistantEntryVisibleProvider))
+              if (path == '/explore')
                 const Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   child: IgnorePointer(child: _SoftGlow()),
-                ),
-              if (path == '/explore')
-                const Positioned(
-                  right: 28,
-                  bottom: 26,
-                  child: AiAssistantButton(),
                 ),
             ],
           ),
