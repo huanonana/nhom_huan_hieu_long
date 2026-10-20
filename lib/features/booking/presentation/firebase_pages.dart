@@ -53,7 +53,9 @@ class _FirebaseExplorePageState extends ConsumerState<FirebaseExplorePage> {
       children: [
         if (!widget.favoritesOnly) ...[
           _WelcomeBanner(onExplore: _scrollToStays),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+          const _TrustRow(),
+          const SizedBox(height: 24),
         ],
         Text(
           widget.favoritesOnly ? 'Nơi bạn đã lưu' : 'Chọn nơi nghỉ phù hợp',
@@ -272,9 +274,9 @@ class _WelcomeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(24),
+    borderRadius: BorderRadius.circular(28),
     child: SizedBox(
-      height: 238,
+      height: 270,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -282,14 +284,48 @@ class _WelcomeBanner extends StatelessWidget {
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x16000000), Color(0xC8000000)],
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+                colors: [Color(0x15000000), Color(0xCC111713)],
+                stops: [0, .92],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .94),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.star_rounded, color: Color(0xFFE39A28), size: 17),
+                  SizedBox(width: 4),
+                  Text(
+                    'Chọn lọc cho bạn',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 19),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -297,45 +333,82 @@ class _WelcomeBanner extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 6,
+                    vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .2),
+                    color: Colors.white.withValues(alpha: .17),
                     borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'HHL STAY · ĐI ĐÂU CŨNG CÓ CHỖ ĐẸP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: .5,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .28),
                     ),
                   ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.waves_rounded,
+                        color: Color(0xFFFFD7A9),
+                        size: 14,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'HHL STAY  ·  KỲ NGHỈ CỦA RIÊNG BẠN',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .55,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Kỳ nghỉ đáng nhớ,\nbắt đầu từ đây.',
+                const SizedBox(height: 13),
+                const Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Tìm chốn nghỉ đẹp,\n'),
+                      TextSpan(text: 'đi trốn '),
+                      TextSpan(
+                        text: 'đúng gu.',
+                        style: TextStyle(color: Color(0xFFFFC18C)),
+                      ),
+                    ],
+                  ),
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 27,
-                    height: 1.08,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 30,
+                    height: 1.04,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.8,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Tìm không gian hợp gu cho chuyến đi tiếp theo.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                  'Không gian có chất riêng cho chuyến đi tiếp theo.',
+                  style: TextStyle(
+                    color: Color(0xFFF2F2EF),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 15),
                 FilledButton.icon(
                   onPressed: onExplore,
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: brand,
+                    backgroundColor: brand,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 3,
+                    shadowColor: brand.withValues(alpha: .35),
                   ),
-                  icon: const Icon(Icons.search, size: 18),
+                  icon: const Icon(Icons.search_rounded, size: 18),
                   label: const Text('Khám phá homestay'),
                 ),
               ],
@@ -344,6 +417,69 @@ class _WelcomeBanner extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+class _TrustRow extends StatelessWidget {
+  const _TrustRow();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFECE8E1)),
+    ),
+    child: const Row(
+      children: [
+        Expanded(
+          child: _TrustItem(
+            icon: Icons.verified_user_outlined,
+            label: 'Đặt an tâm',
+          ),
+        ),
+        Expanded(
+          child: _TrustItem(
+            icon: Icons.payments_outlined,
+            label: 'Giá rõ ràng',
+          ),
+        ),
+        Expanded(
+          child: _TrustItem(
+            icon: Icons.home_work_outlined,
+            label: 'Chỗ ở có thật',
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _TrustItem extends StatelessWidget {
+  const _TrustItem({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(icon, size: 16, color: brand),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: ink,
+          ),
+        ),
+      ),
+    ],
   );
 }
 
