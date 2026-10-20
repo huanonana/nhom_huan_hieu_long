@@ -96,7 +96,9 @@ class FirestoreBookingRepository implements RemoteBookingRepository {
     }
 
     final roomRef = _rooms.doc(roomId);
-    final bookingRef = _bookings.doc();
+    // Keep the public booking ID identical to the Firestore document ID so
+    // later transitions and reviews address the same document.
+    final bookingRef = _bookings.doc('HHL-${_bookings.doc().id}');
     // Existing demo/migrated bookings may not yet have per-night lock docs.
     // Check those first; new concurrent requests are serialized by lock docs
     // inside the transaction below.
@@ -170,7 +172,7 @@ class FirestoreBookingRepository implements RemoteBookingRepository {
         }
       }
       final booking = Booking(
-        id: 'HHL-${bookingRef.id}',
+        id: bookingRef.id,
         roomId: room.id,
         homestayId: home.id,
         hostId: home.hostId,

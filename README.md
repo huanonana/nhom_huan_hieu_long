@@ -95,6 +95,27 @@ Thay `xxx` bằng API key của bạn. Không commit hoặc chia sẻ key trong 
 Nếu không truyền key, app vẫn chạy đầy đủ các chức năng khác; các tính năng AI
 sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
 
+## Cấu hình Firebase
+
+Các repository Firebase và màn hình đăng nhập đã có trong mã nguồn, nhưng
+app vẫn khởi động ở chế độ demo cho đến khi tạo cấu hình theo Firebase project.
+Trong Firebase Console, bật Email/Password ở Authentication và tạo Firestore
+Database cùng Storage. Sau đó chạy tại thư mục gốc repo:
+
+```bash
+npm install -g firebase-tools
+firebase login
+dart pub global activate flutterfire_cli
+flutterfire configure
+```
+
+Trong `flutterfire configure`, chọn đúng project, chọn nền tảng Android và Web,
+rồi để công cụ tạo `lib/firebase_options.dart`. Không tự tạo file này bằng giá
+trị mẫu. Sau khi file được sinh, cần nối `Firebase.initializeApp(options:
+DefaultFirebaseOptions.currentPlatform)` vào `lib/main.dart` trước `runApp`,
+kiểm tra app khởi động rồi mới bật đăng nhập thật. Các repository demo vẫn được
+giữ để so sánh. Không commit thông tin bí mật.
+
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
 
