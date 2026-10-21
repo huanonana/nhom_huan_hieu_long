@@ -1,0 +1,4 @@
+analyzer:
+  exclude:
+    # Original duplicate scaffold; the maintained app is at the repository root.
+    - homestay_app/**
