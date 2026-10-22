@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/router/navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
@@ -40,6 +41,24 @@ class _DetailPageState extends ConsumerState<DetailPage> {
   void initState() {
     super.initState();
     _scroll.addListener(_trackSection);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recordView());
+  }
+
+  void _recordView() {
+    if (!mounted) return;
+    final recent = ref.read(recentHomestaysProvider);
+    ref.read(recentHomestaysProvider.notifier).state = [
+      widget.id,
+      ...recent.where((id) => id != widget.id),
+    ].take(8).toList();
+  }
+
+  @override
+  void didUpdateWidget(covariant DetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recordView());
+    }
   }
 
   void _trackSection() {
@@ -88,10 +107,21 @@ class _DetailPageState extends ConsumerState<DetailPage> {
   }
 
   void _showAllPhotos(String homestayId) {
+    final home = ref
+        .read(repositoryProvider)
+        .homestays
+        .where((item) => item.id == homestayId)
+        .firstOrNull;
     showDialog<void>(
       context: context,
       builder: (_) => Dialog.fullscreen(
-        child: SafeArea(child: StayGallery(homestayId, fullscreen: true)),
+        child: SafeArea(
+          child: StayGallery(
+            homestayId,
+            fullscreen: true,
+            imageUrls: home?.imageUrls ?? const [],
+          ),
+        ),
       ),
     );
   }
@@ -106,16 +136,9 @@ class _DetailPageState extends ConsumerState<DetailPage> {
     ]);
     if (!mounted) return;
     setState(() => _summarizingReviews = false);
-    if (summary == AiService.unavailableMessage ||
-        summary == AiService.friendlyErrorMessage) {
+    if (AiService.isErrorMessage(summary)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            summary == AiService.unavailableMessage
-                ? 'Tính năng AI chưa khả dụng. Bạn vẫn xem được đánh giá bên dưới.'
-                : 'Chưa thể kết nối AI. Bạn vẫn xem được đánh giá bên dưới.',
-          ),
-        ),
+        SnackBar(content: Text('$summary Bạn vẫn xem được đánh giá bên dưới.')),
       );
       return;
     }
@@ -160,8 +183,9 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                     foregroundColor: Colors.white,
                     backgroundColor: brand,
                     leading: IconButton(
-                      tooltip: 'Quay lại Khám phá',
-                      onPressed: () => context.go('/explore'),
+                      tooltip: 'Quay lại',
+                      onPressed: () =>
+                          navigateBack(context, fallback: '/explore'),
                       icon: const Icon(Icons.arrow_back),
                     ),
                     actions: [
@@ -202,8 +226,11 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                         children: [
                           Hero(
                             tag: 'homestay-cover-${home.id}',
-                            child: Image.asset(
-                              photosFor(home.id).first.asset,
+                            child: buildStayImage(
+                              photosFor(
+                                home.id,
+                                imageSources: home.imageUrls,
+                              ).first.asset,
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -331,6 +358,10 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                           for (final room in rooms)
                             Builder(
                               builder: (context) {
+                                final roomPhotos = photosFor(
+                                  home.id,
+                                  imageSources: home.imageUrls,
+                                );
                                 final fits = room.capacity >= search.guests;
                                 final free =
                                     room.active &&
@@ -360,12 +391,11 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                               ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(12),
-                                                child: Image.asset(
-                                                  photosFor(home.id)[rooms
-                                                              .indexOf(room) %
-                                                          photosFor(
-                                                            home.id,
-                                                          ).length]
+                                                child: buildStayImage(
+                                                  roomPhotos[rooms.indexOf(
+                                                            room,
+                                                          ) %
+                                                          roomPhotos.length]
                                                       .asset,
                                                   width: 76,
                                                   height: 76,
@@ -430,7 +460,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                             child: FilledButton(
                                               onPressed: bookable
                                                   ? () => context.go(
-                                                      '/book/${room.id}',
+                                                      '/book/${room.id}?${Uri(queryParameters: {'back': '/homestays/${home.id}'}).query}',
                                                     )
                                                   : null,
                                               child: const Text(
@@ -451,7 +481,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                             key: _policyKey,
                           ),
                           const Text(
-                            '• Yêu cầu đặt phòng chờ chủ nhà duyệt trong tối đa 24 giờ.\n• Bạn có thể hủy miễn phí khi đơn đang chờ duyệt.\n• Chưa hỗ trợ hủy tự động sau khi được xác nhận.\n• Giá hiển thị không thêm phụ phí trong bản trải nghiệm.',
+                            '• Yêu cầu đặt phòng chờ chủ nhà duyệt trong tối đa 24 giờ.\n• Bạn có thể hủy miễn phí khi đơn đang chờ duyệt.\n• Đơn đã xác nhận có thể hủy miễn phí trước giờ nhận phòng 24 giờ.\n• Giá hiển thị không thêm phụ phí trong bản trải nghiệm.',
                           ),
                           SectionHeading(
                             'Khách đã ở nói gì?',
@@ -483,7 +513,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                             ),
                             if (_reviewSummary case final summary?)
                               Card(
-                                color: const Color(0xFFF4EFFA),
+                                color: const Color(0xFFEEF2FF),
                                 child: Padding(
                                   padding: const EdgeInsets.all(15),
                                   child: Row(
@@ -492,7 +522,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                     children: [
                                       const Icon(
                                         Icons.auto_awesome_rounded,
-                                        color: Color(0xFF8050A6),
+                                        color: brand,
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -503,7 +533,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                             const Text(
                                               'Tóm tắt từ AI',
                                               style: TextStyle(
-                                                color: Color(0xFF68418A),
+                                                color: brand,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),
@@ -564,7 +594,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                     .reduce((a, b) => a < b ? a : b);
                                 return InkWell(
                                   onTap: () =>
-                                      context.go('/homestays/${other.id}'),
+                                      context.push('/homestays/${other.id}'),
                                   borderRadius: BorderRadius.circular(15),
                                   child: SizedBox(
                                     width: 190,
@@ -625,7 +655,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFECECF0))),
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
                 boxShadow: [
                   BoxShadow(
                     color: Color(0x14000000),

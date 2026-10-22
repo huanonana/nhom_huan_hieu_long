@@ -6,51 +6,59 @@ import 'common.dart';
 import 'stay_gallery.dart';
 import '../../features/booking/domain/booking.dart';
 
-String stayImage(String id) => photosFor(id).first.asset;
+String stayImage(String id, {List<String> imageUrls = const []}) =>
+    photosFor(id, imageSources: imageUrls).first.asset;
 
-class StayPhoto extends StatelessWidget {
+class StayPhoto extends ConsumerWidget {
   const StayPhoto(
     this.id, {
     super.key,
     this.height = 220,
     this.radius = 18,
     this.label = true,
+    this.imageUrls,
   });
   final String id;
   final double height, radius;
   final bool label;
+  final List<String>? imageUrls;
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(radius),
-    child: Stack(
-      children: [
-        Image.asset(
-          stayImage(id),
-          width: double.infinity,
-          height: height,
-          fit: BoxFit.cover,
-          cacheWidth: 1200,
-          semanticLabel: 'Ảnh minh họa homestay',
-        ),
-        if (label)
-          Positioned(
-            bottom: 10,
-            right: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'Ảnh chụp tham khảo',
-                style: TextStyle(color: Colors.white, fontSize: 10),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(repositoryProvider);
+    final home = repo.homestays.where((h) => h.id == id).firstOrNull;
+    final sources = imageUrls ?? home?.imageUrls ?? const <String>[];
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Stack(
+        children: [
+          buildStayImage(
+            stayImage(id, imageUrls: sources),
+            width: double.infinity,
+            height: height,
+            fit: BoxFit.cover,
+            cacheWidth: 1200,
+            semanticLabel: 'Ảnh homestay',
+          ),
+          if (label)
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Ảnh chụp tham khảo',
+                  style: TextStyle(color: Colors.white, fontSize: 10),
+                ),
               ),
             ),
-          ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class StaySearch {
@@ -179,9 +187,9 @@ class StaySearchBar extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F8FA),
+            color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFECECF0)),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
@@ -234,7 +242,7 @@ class StaySearchBar extends ConsumerWidget {
                 onSelected: (n) => ref.read(staySearchProvider.notifier).state =
                     StaySearch(dates: value.dates, guests: n),
                 itemBuilder: (_) => [
-                  for (var i = 1; i <= 10; i++)
+                  for (var i = 1; i <= 30; i++)
                     PopupMenuItem(value: i, child: Text('$i khách')),
                 ],
                 child: Container(
@@ -243,7 +251,7 @@ class StaySearchBar extends ConsumerWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE5E5EB)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -273,6 +281,68 @@ class StaySearchBar extends ConsumerWidget {
       ],
     );
   }
+}
+
+class GuestCountStepper extends StatelessWidget {
+  const GuestCountStepper({
+    super.key,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final int value;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.people_alt_outlined, color: brand),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Số khách',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                value > max
+                    ? 'Phòng chứa tối đa $max khách · giảm số khách hoặc chọn phòng khác'
+                    : 'Sức chứa phòng: tối đa $max khách',
+                style: TextStyle(
+                  color: value > max ? const Color(0xFFB42318) : muted,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Giảm số khách',
+          onPressed: value > 1 ? () => onChanged(value - 1) : null,
+          icon: const Icon(Icons.remove_circle_outline),
+          visualDensity: VisualDensity.compact,
+        ),
+        Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
+        IconButton(
+          tooltip: 'Tăng số khách',
+          onPressed: value < max ? () => onChanged(value + 1) : null,
+          icon: const Icon(Icons.add_circle_outline),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    ),
+  );
 }
 
 class SectionHeading extends StatelessWidget {

@@ -47,9 +47,9 @@ $buildButton.Add_Click({
     @{ GEMINI_API_KEY = $key } | ConvertTo-Json -Compress | Set-Content -LiteralPath $defineFile -Encoding utf8
     $key = $null
     Set-Location 'D:\LapTrinhMobile\nhom_huan_hieu_long'
-    & flutter build web --dart-define-from-file="$defineFile"
+    & flutter build web --dart-define-from-file="$defineFile" --base-href / --output build/web-offline-check
     if ($LASTEXITCODE -ne 0) { throw "Flutter build thất bại (exit $LASTEXITCODE)." }
-    $status.Text = 'Build xong. Gemini đã được cấu hình. Mở localhost:8083/#/ai-chat và tải lại trang.'
+    $status.Text = 'Build xong. Gemini đã được cấu hình. Mở localhost:8086/#/ai-chat và tải lại trang.'
     $form.Text = 'HHL Stay - Gemini đã bật'
   } catch {
     $status.Text = 'Build lỗi: ' + $_.Exception.Message

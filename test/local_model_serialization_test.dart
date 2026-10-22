@@ -6,7 +6,7 @@ import 'package:nhom_huan_hieu/features/review/domain/review.dart';
 
 void main() {
   test(
-    'AppUser round-trips its role and profile fields through Firestore data',
+    'AppUser round-trips its role and profile fields through local JSON',
     () {
       final user = AppUser(
         uid: 'user-1',
@@ -16,7 +16,7 @@ void main() {
         createdAt: DateTime.utc(2026, 10, 7),
       );
 
-      final restored = AppUser.fromFirestore(user.toFirestore());
+      final restored = AppUser.fromJson(user.toJson());
       expect(restored.uid, user.uid);
       expect(restored.email, user.email);
       expect(restored.displayName, user.displayName);
@@ -25,7 +25,7 @@ void main() {
     },
   );
 
-  test('catalog models expose Firestore serializers without changing JSON', () {
+  test('catalog models round-trip through local JSON', () {
     const home = Homestay(
       id: 'home-1',
       hostId: 'host-1',
@@ -43,11 +43,11 @@ void main() {
       price: 650000,
       capacity: 2,
     );
-    expect(Homestay.fromFirestore(home.toFirestore()).toJson(), home.toJson());
-    expect(Room.fromFirestore(room.toFirestore()).toJson(), room.toJson());
+    expect(Homestay.fromJson(home.toJson()).toJson(), home.toJson());
+    expect(Room.fromJson(room.toJson()).toJson(), room.toJson());
   });
 
-  test('booking and review Firestore timestamps round-trip', () {
+  test('booking and review dates round-trip through local JSON', () {
     final start = DateTime.utc(2026, 11, 2);
     final booking = Booking(
       id: 'booking-1',
@@ -75,7 +75,7 @@ void main() {
       createdAt: start,
     );
 
-    final restoredBooking = Booking.fromFirestore(booking.toFirestore());
+    final restoredBooking = Booking.fromJson(booking.toJson());
     expect(restoredBooking.id, booking.id);
     expect(restoredBooking.status, booking.status);
     expect(restoredBooking.checkIn.isAtSameMomentAs(booking.checkIn), isTrue);
@@ -88,7 +88,7 @@ void main() {
       restoredBooking.expiresAt.isAtSameMomentAs(booking.expiresAt),
       isTrue,
     );
-    final restoredReview = StayReview.fromFirestore(review.toFirestore());
+    final restoredReview = StayReview.fromJson(review.toJson());
     expect(restoredReview.bookingId, review.bookingId);
     expect(restoredReview.comment, review.comment);
     expect(restoredReview.createdAt.isAtSameMomentAs(review.createdAt), isTrue);

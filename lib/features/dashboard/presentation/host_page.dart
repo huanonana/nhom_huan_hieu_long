@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,8 @@ import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
+import '../../../core/widgets/stay_gallery.dart';
+import '../../auth/presentation/auth_provider.dart';
 import '../../booking/domain/booking.dart';
 import '../../homestay/domain/catalog.dart';
 import '../domain/monthly_occupancy.dart';
@@ -19,6 +23,7 @@ class HostPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(changesProvider);
     final repo = ref.watch(repositoryProvider);
+    final manager = ref.watch(currentUserProvider).valueOrNull;
     final now = vietnamToday(repo.now);
     final bookings = repo.bookings
         .where((b) => b.hostId == 'host-demo')
@@ -136,12 +141,62 @@ class HostPage extends ConsumerWidget {
         ),
         const SizedBox(height: 5),
         const Text('Quản lý homestay, phòng và các đơn đặt trên hệ thống.'),
+        const SizedBox(height: 10),
+        if (needsAttention.isEmpty)
+          _DashboardNotice(
+            title: 'Bảng quản lý đang ổn định',
+            detail: 'Mọi phòng và yêu cầu đặt phòng đã được cập nhật.',
+            icon: Icons.check_circle_outline_rounded,
+            onTap: () => context.go('/host/calendar'),
+          )
+        else
+          _DashboardNotice(
+            title: needsAttention.first.title,
+            detail: needsAttention.first.detail,
+            icon: needsAttention.first.icon,
+            warning:
+                needsAttention.first.icon == Icons.build_outlined ||
+                needsAttention.first.color == const Color(0xFFB56A14),
+            onTap: () => context.go(
+              needsAttention.first.opensBookings
+                  ? '/bookings'
+                  : '/host/calendar',
+            ),
+          ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEEF2FF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFC7D2FE)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 17, color: brand),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Dữ liệu mẫu để trình diễn đồ án — không phải giao dịch thật.',
+                  style: TextStyle(
+                    color: Color(0xFF4338CA),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 14),
         _AdminWelcomeCard(
           homestays: homestays.length,
           activeRooms: activeRooms,
           allRooms: rooms.length,
           today: now,
+          managerName: manager?.displayName.trim().isNotEmpty == true
+              ? manager!.displayName.trim()
+              : 'Quản trị viên',
         ),
         const SizedBox(height: 14),
         _QuickActions(
@@ -188,6 +243,7 @@ class HostPage extends ConsumerWidget {
                     'Khách hiện tại',
                     Icons.hotel_rounded,
                     color: const Color(0xFFEAF5EF),
+                    iconColor: const Color(0xFF218567),
                     onTap: () => context.go('/bookings'),
                   ),
                 ),
@@ -209,6 +265,14 @@ class HostPage extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         _RevenueCard(values: monthlyValues, labels: monthLabels),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => context.go('/host/finance'),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            label: const Text('Mở quản lý tài chính'),
+          ),
+        ),
         const SizedBox(height: 12),
         _OccupancyCard(
           occupancy: occupancy,
@@ -248,6 +312,18 @@ class HostPage extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/host/guests'),
+          icon: const Icon(Icons.groups_outlined),
+          label: const Text('Danh bạ khách & lịch sử lưu trú'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/host/staff'),
+          icon: const Icon(Icons.badge_outlined),
+          label: const Text('Lịch ca & nhân sự'),
+        ),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -276,8 +352,8 @@ class HostPage extends ConsumerWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          stayImage(h.id),
+                        child: buildStayImage(
+                          stayImage(h.id, imageUrls: h.imageUrls),
                           width: 68,
                           height: 68,
                           fit: BoxFit.cover,
@@ -379,7 +455,7 @@ class HostPage extends ConsumerWidget {
                               CircleAvatar(
                                 backgroundColor: room.active
                                     ? const Color(0xFFEAF5EF)
-                                    : const Color(0xFFF1F0ED),
+                                    : const Color(0xFFF1F5F9),
                                 child: Icon(
                                   room.active
                                       ? Icons.bed_outlined
@@ -447,10 +523,12 @@ class _AdminWelcomeCard extends StatelessWidget {
     required this.activeRooms,
     required this.allRooms,
     required this.today,
+    required this.managerName,
   });
 
   final int homestays, activeRooms, allRooms;
   final DateTime today;
+  final String managerName;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -474,19 +552,28 @@ class _AdminWelcomeCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'BẢNG ĐIỀU HÀNH · ${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year}',
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: .8,
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'BẢNG ĐIỀU HÀNH',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .8,
+                ),
+              ),
+            ),
+            _AdminClock(today: today),
+          ],
         ),
         const SizedBox(height: 7),
-        const Text(
-          'Chào Admin 👋',
-          style: TextStyle(
+        Text(
+          'Xin chào, $managerName 👋',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -507,6 +594,131 @@ class _AdminWelcomeCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _AdminClock extends StatefulWidget {
+  const _AdminClock({required this.today});
+  final DateTime today;
+
+  @override
+  State<_AdminClock> createState() => _AdminClockState();
+}
+
+class _AdminClockState extends State<_AdminClock> {
+  late DateTime _now = DateTime.now();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final date =
+        '${widget.today.day.toString().padLeft(2, '0')}/'
+        '${widget.today.month.toString().padLeft(2, '0')}/'
+        '${widget.today.year}';
+    final time =
+        '${_now.hour.toString().padLeft(2, '0')}:'
+        '${_now.minute.toString().padLeft(2, '0')}';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.circle, color: Color(0xFF86EFAC), size: 8),
+        const SizedBox(width: 6),
+        Text(
+          '$date · $time',
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardNotice extends StatelessWidget {
+  const _DashboardNotice({
+    required this.title,
+    required this.detail,
+    required this.icon,
+    required this.onTap,
+    this.warning = false,
+  });
+
+  final String title, detail;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = warning ? const Color(0xFFB7791F) : brand;
+    final background = warning
+        ? const Color(0xFFFFF8E7)
+        : const Color(0xFFF5F3FF);
+    final border = warning ? const Color(0xFFF2D28A) : const Color(0xFFDDD6FE);
+    return Container(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(15),
+        border: Border(left: BorderSide(color: accent, width: 4)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 11, 10, 11),
+        child: Row(
+          children: [
+            Icon(icon, color: accent, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: muted, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accent,
+                side: BorderSide(color: border),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Xử lý ngay', style: TextStyle(fontSize: 10)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PortfolioStat extends StatelessWidget {
@@ -682,7 +894,7 @@ class _QuickActions extends StatelessWidget {
                 width: width,
                 child: _QuickActionTile(
                   icon: Icons.bedroom_parent_outlined,
-                  label: 'Thêm phòng',
+                  label: 'Thêm phòng khác',
                   onTap: onAddRoom,
                 ),
               ),
@@ -724,7 +936,7 @@ class _QuickActionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFECE7E1)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Row(
           children: [
@@ -874,6 +1086,11 @@ class _OperationRow extends StatelessWidget {
                   '${booking.nights} đêm · ${money(booking.total)}',
                   style: const TextStyle(color: muted, fontSize: 11),
                 ),
+                if (booking.guestPhone.isNotEmpty)
+                  Text(
+                    'Liên hệ: ${booking.guestPhone}',
+                    style: const TextStyle(color: muted, fontSize: 11),
+                  ),
               ],
             ),
           ),
@@ -1024,7 +1241,7 @@ class _RevenueCardState extends State<_RevenueCard> {
                       drawVerticalLine: false,
                       horizontalInterval: interval,
                       getDrawingHorizontalLine: (_) => const FlLine(
-                        color: Color(0xFFEFECE7),
+                        color: Color(0xFFE2E8F0),
                         strokeWidth: 1,
                       ),
                     ),
@@ -1166,7 +1383,7 @@ class _OccupancyCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: occupancy.percentage / 100,
                 minHeight: 9,
-                backgroundColor: const Color(0xFFF1EEE9),
+                backgroundColor: const Color(0xFFF1F5F9),
                 color: brand,
                 semanticsLabel: 'Công suất phòng tháng $month',
                 semanticsValue: '${occupancy.percentage} phần trăm',
@@ -1203,12 +1420,14 @@ class _Metric extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.highlighted = false,
+    this.iconColor = brand,
   });
   final String label, value, caption;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
   final bool highlighted;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1233,7 +1452,7 @@ class _Metric extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: color,
-                child: Icon(icon, color: brand, size: 19),
+                child: Icon(icon, color: iconColor, size: 19),
               ),
               const SizedBox(width: 12),
               Expanded(

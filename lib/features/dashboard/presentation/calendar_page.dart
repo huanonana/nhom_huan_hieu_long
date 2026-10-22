@@ -5,8 +5,11 @@ import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
+import '../../../core/widgets/stay_gallery.dart';
 import '../../booking/domain/booking.dart';
 import '../../booking/presentation/booking_status_badge.dart';
+import '../../homestay/domain/catalog.dart';
+import 'room_timeline.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -92,6 +95,22 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           style: TextStyle(fontSize: 12, color: muted),
         ),
         const SizedBox(height: 20),
+        RoomTimeline(
+          rooms: rooms,
+          bookings: repo.bookings,
+          start: day,
+          now: repo.now,
+          homestayNames: {
+            for (final home in repo.homestays) home.id: home.name,
+          },
+          onSelectDate: (date) => setState(() => _selected = date),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Chi tiết ngày ${dateLabel(day)}',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
         for (final room in rooms)
           Builder(
             builder: (context) {
@@ -115,8 +134,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: Image.asset(
-                                stayImage(room.homestayId),
+                              child: buildStayImage(
+                                stayImage(
+                                  room.homestayId,
+                                  imageUrls:
+                                      repo.homestays
+                                          .where((h) => h.id == room.homestayId)
+                                          .firstOrNull
+                                          ?.imageUrls ??
+                                      const [],
+                                ),
                                 width: 56,
                                 height: 56,
                                 fit: BoxFit.cover,
@@ -156,6 +183,35 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             label: 'Bảo trì',
                             icon: Icons.build_outlined,
                             color: muted,
+                          )
+                        else if (room.housekeepingStatus !=
+                            HousekeepingStatus.ready)
+                          StatusBadge(
+                            label: room.housekeepingStatus.label,
+                            icon: switch (room.housekeepingStatus) {
+                              HousekeepingStatus.needsCleaning =>
+                                Icons.cleaning_services_outlined,
+                              HousekeepingStatus.cleaning =>
+                                Icons.hourglass_top_rounded,
+                              HousekeepingStatus.maintenance =>
+                                Icons.build_outlined,
+                              HousekeepingStatus.ready =>
+                                Icons.check_circle_outline_rounded,
+                            },
+                            color: switch (room.housekeepingStatus) {
+                              HousekeepingStatus.needsCleaning => const Color(
+                                0xFFDC2626,
+                              ),
+                              HousekeepingStatus.cleaning => const Color(
+                                0xFFB45309,
+                              ),
+                              HousekeepingStatus.maintenance => const Color(
+                                0xFF7C3AED,
+                              ),
+                              HousekeepingStatus.ready => const Color(
+                                0xFF059669,
+                              ),
+                            },
                           )
                         else if (bookings.isEmpty)
                           const StatusBadge(

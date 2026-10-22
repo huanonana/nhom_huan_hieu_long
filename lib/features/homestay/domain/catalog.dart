@@ -1,27 +1,4 @@
 class Homestay {
-  Map<String, dynamic> toFirestore() => {
-    'id': id,
-    'hostId': hostId,
-    'name': name,
-    'city': city,
-    'address': address,
-    'description': description,
-    'amenities': amenities,
-    'color': color,
-  };
-
-  factory Homestay.fromFirestore(Map<String, dynamic> data, {String? id}) =>
-      Homestay(
-        id: data['id'] as String? ?? id ?? '',
-        hostId: data['hostId'] as String? ?? '',
-        name: data['name'] as String? ?? '',
-        city: data['city'] as String? ?? '',
-        address: data['address'] as String? ?? '',
-        description: data['description'] as String? ?? '',
-        amenities: List<String>.from(data['amenities'] as List? ?? const []),
-        color: data['color'] as int? ?? 0xFF2F6757,
-      );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'hostId': hostId,
@@ -31,6 +8,7 @@ class Homestay {
     'description': description,
     'amenities': amenities,
     'color': color,
+    'imageUrls': imageUrls,
   };
   factory Homestay.fromJson(Map<String, dynamic> j) => Homestay(
     id: j['id'] as String,
@@ -41,6 +19,7 @@ class Homestay {
     description: j['description'] as String,
     amenities: List<String>.from(j['amenities'] as List),
     color: j['color'] as int,
+    imageUrls: List<String>.from(j['imageUrls'] as List? ?? const []),
   );
 
   const Homestay({
@@ -52,31 +31,26 @@ class Homestay {
     required this.description,
     required this.amenities,
     required this.color,
+    this.imageUrls = const [],
   });
   final String id, hostId, name, city, address, description;
   final List<String> amenities;
+  final List<String> imageUrls;
   final int color;
 }
 
-class Room {
-  Map<String, dynamic> toFirestore() => {
-    'id': id,
-    'homestayId': homestayId,
-    'name': name,
-    'price': price,
-    'capacity': capacity,
-    'active': active,
+enum HousekeepingStatus { ready, needsCleaning, cleaning, maintenance }
+
+extension HousekeepingStatusLabel on HousekeepingStatus {
+  String get label => switch (this) {
+    HousekeepingStatus.ready => 'Sẵn sàng',
+    HousekeepingStatus.needsCleaning => 'Cần dọn',
+    HousekeepingStatus.cleaning => 'Đang dọn',
+    HousekeepingStatus.maintenance => 'Bảo trì',
   };
+}
 
-  factory Room.fromFirestore(Map<String, dynamic> data, {String? id}) => Room(
-    id: data['id'] as String? ?? id ?? '',
-    homestayId: data['homestayId'] as String? ?? '',
-    name: data['name'] as String? ?? '',
-    price: (data['price'] as num?)?.toInt() ?? 0,
-    capacity: (data['capacity'] as num?)?.toInt() ?? 1,
-    active: data['active'] as bool? ?? true,
-  );
-
+class Room {
   Map<String, dynamic> toJson() => {
     'id': id,
     'homestayId': homestayId,
@@ -84,6 +58,7 @@ class Room {
     'price': price,
     'capacity': capacity,
     'active': active,
+    'housekeepingStatus': housekeepingStatus.name,
   };
   factory Room.fromJson(Map<String, dynamic> j) => Room(
     id: j['id'] as String,
@@ -92,6 +67,10 @@ class Room {
     price: j['price'] as int,
     capacity: j['capacity'] as int,
     active: j['active'] as bool,
+    housekeepingStatus: HousekeepingStatus.values.firstWhere(
+      (status) => status.name == j['housekeepingStatus'],
+      orElse: () => HousekeepingStatus.ready,
+    ),
   );
 
   const Room({
@@ -101,8 +80,20 @@ class Room {
     required this.price,
     required this.capacity,
     this.active = true,
+    this.housekeepingStatus = HousekeepingStatus.ready,
   });
   final String id, homestayId, name;
   final int price, capacity;
   final bool active;
+  final HousekeepingStatus housekeepingStatus;
+
+  Room withHousekeeping(HousekeepingStatus status) => Room(
+    id: id,
+    homestayId: homestayId,
+    name: name,
+    price: price,
+    capacity: capacity,
+    active: active,
+    housekeepingStatus: status,
+  );
 }

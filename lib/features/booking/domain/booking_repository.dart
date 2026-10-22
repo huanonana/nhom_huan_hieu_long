@@ -20,39 +20,20 @@ abstract class BookingRepository {
     required DateTime checkIn,
     required DateTime checkOut,
     required int guests,
+    int memberDiscountPercent = 0,
+    int couponDiscountPercent = 0,
+    String couponCode = '',
     String note = '',
   });
   void transition(String id, BookingStatus target, {required String actorId});
-  StayReview addReview(
+  void recordPayment(
     String bookingId, {
     required String actorId,
-    required int rating,
-    required String comment,
-  });
-}
-
-/// Remote counterpart for Firestore's asynchronous API. The original
-/// BookingRepository remains synchronous for the local demo implementation.
-abstract interface class RemoteBookingRepository {
-  Stream<List<Booking>> watchAll();
-  Stream<List<Booking>> watchForGuest(String guestId);
-  Stream<List<Booking>> watchForHost(String hostId);
-  Future<bool> available(Room room, DateTime checkIn, DateTime checkOut);
-  Future<Booking> create({
-    required String roomId,
-    required String guestId,
-    required String guestName,
-    required DateTime checkIn,
-    required DateTime checkOut,
-    required int guests,
+    required int amount,
+    required String method,
     String note = '',
   });
-  Future<void> transition(
-    String id,
-    BookingStatus target, {
-    required String actorId,
-  });
-  Future<StayReview> addReview(
+  StayReview addReview(
     String bookingId, {
     required String actorId,
     required int rating,

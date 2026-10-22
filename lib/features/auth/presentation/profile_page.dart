@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/state/app_state.dart';
@@ -7,17 +8,29 @@ import '../../../core/widgets/common.dart';
 import '../../booking/domain/booking.dart';
 import '../domain/app_user.dart';
 import 'auth_provider.dart';
+import 'logout_action.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    if (currentUser != null) return _AuthenticatedProfile(user: currentUser);
     if (ref.watch(authModeProvider)) {
       return ref
           .watch(currentUserProvider)
           .when(
             data: (user) => user == null
-                ? const PageBody(children: [Text('Bạn chưa đăng nhập.')])
+                ? PageBody(
+                    maxWidth: 520,
+                    children: [
+                      const EmptyState('Bạn chưa đăng nhập.'),
+                      FilledButton(
+                        onPressed: () => context.go('/login'),
+                        child: const Text('Đăng nhập để tiếp tục'),
+                      ),
+                    ],
+                  )
                 : _AuthenticatedProfile(user: user),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => PageBody(
@@ -118,6 +131,9 @@ class ProfilePage extends ConsumerWidget {
                 isAdmin ? '$managedHomes' : '${guestBookings.length}',
                 isAdmin ? 'Homestay' : 'Chuyến đi',
                 () => context.go(isAdmin ? '/host' : '/bookings'),
+                icon: isAdmin
+                    ? Icons.home_work_outlined
+                    : Icons.luggage_outlined,
               ),
             ),
             const SizedBox(width: 12),
@@ -131,6 +147,9 @@ class ProfilePage extends ConsumerWidget {
                   }
                   context.go(isAdmin ? '/bookings' : '/favorites');
                 },
+                icon: isAdmin
+                    ? Icons.pending_actions_rounded
+                    : Icons.favorite_border_rounded,
               ),
             ),
           ],
@@ -174,6 +193,15 @@ class ProfilePage extends ConsumerWidget {
                   onTap: () => context.go('/bookings'),
                 ),
                 ListTile(
+                  leading: const Icon(
+                    Icons.favorite_border_rounded,
+                    color: brand,
+                  ),
+                  title: const Text('Homestay yêu thích'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go('/favorites'),
+                ),
+                ListTile(
                   leading: const Icon(Icons.help_outline, color: brand),
                   title: const Text('Đặt phòng như thế nào?'),
                   trailing: const Icon(Icons.chevron_right),
@@ -204,6 +232,52 @@ class ProfilePage extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const ExpansionTile(
+                  leading: Icon(Icons.settings_outlined, color: brand),
+                  title: Text('Cài đặt và thông tin'),
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.receipt_long_outlined),
+                      title: Text('Thông tin hóa đơn'),
+                      subtitle: Text(
+                        'Bản demo thanh toán tại homestay, chưa phát hành hóa đơn.',
+                      ),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.notifications_none_rounded),
+                      title: Text('Thông báo'),
+                      subtitle: Text(
+                        'Trạng thái đặt phòng hiển thị trong mục Đơn đặt.',
+                      ),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.language_rounded),
+                      title: Text('Ngôn ngữ · Khu vực'),
+                      subtitle: Text('Tiếng Việt · Việt Nam'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.shield_outlined),
+                      title: Text('Điều khoản và quyền riêng tư'),
+                      subtitle: Text(
+                        'Dữ liệu đặt phòng demo được lưu trên thiết bị.',
+                      ),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.info_outline_rounded),
+                      title: Text('Phiên bản'),
+                      subtitle: Text('HHL Stay · Bản demo học thuật'),
+                    ),
+                  ],
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.support_agent_rounded,
+                    color: brand,
+                  ),
+                  title: const Text('Liên hệ trợ lý HHL Stay'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go('/ai-chat'),
+                ),
               ],
             ],
           ),
@@ -221,8 +295,8 @@ class ProfilePage extends ConsumerWidget {
         const SizedBox(height: 10),
         Text(
           isAdmin
-              ? 'Quản trị viên demo có thể quản lý danh mục và đơn đặt. Dữ liệu hiện lưu trên thiết bị, chưa có đăng nhập thật hay đồng bộ Firebase.'
-              : 'Đang dùng dữ liệu demo lưu trên máy. Chuyển vai trò để trải nghiệm; chưa phải đăng nhập thật và chưa đồng bộ Firebase.',
+              ? 'Quản trị viên demo có thể quản lý danh mục và đơn đặt. Dữ liệu được lưu trên thiết bị, không đồng bộ lên máy chủ.'
+              : 'Đang dùng dữ liệu demo lưu trên máy. Chuyển vai trò để trải nghiệm; đơn đặt và yêu thích chỉ có trên thiết bị này.',
           style: TextStyle(color: muted, fontSize: 12),
         ),
         const SizedBox(height: 14),
@@ -268,51 +342,190 @@ class _AuthenticatedProfile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageBody(
-    maxWidth: 1000,
+    maxWidth: 760,
     children: [
-      const SizedBox(height: 12),
-      CircleAvatar(
-        radius: 34,
-        backgroundColor: const Color(0xFFEEF2FF),
-        child: Icon(
-          user.role == AppUserRole.host
-              ? Icons.admin_panel_settings_outlined
-              : Icons.person_outline_rounded,
-          color: brand,
-          size: 34,
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: const Color(0xFFEEF2FF),
+                child: Icon(
+                  user.role == AppUserRole.host
+                      ? Icons.admin_panel_settings_outlined
+                      : Icons.person_outline_rounded,
+                  color: brand,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                user.displayName.isEmpty ? 'Hồ sơ của bạn' : user.displayName,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                user.email,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: muted),
+              ),
+              const SizedBox(height: 14),
+              Chip(
+                avatar: Icon(
+                  user.role == AppUserRole.host
+                      ? Icons.home_work_outlined
+                      : Icons.travel_explore_outlined,
+                  size: 18,
+                ),
+                label: Text(
+                  user.role == AppUserRole.host ? 'Chủ nhà' : 'Khách',
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => signOutAndReturnToPublicPage(context, ref),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Đăng xuất'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      const SizedBox(height: 14),
-      Text(user.displayName, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 6),
-      Text(user.email, style: const TextStyle(color: muted)),
-      const SizedBox(height: 16),
-      Chip(
-        avatar: Icon(
-          user.role == AppUserRole.host
-              ? Icons.home_work_outlined
-              : Icons.travel_explore_outlined,
-          size: 18,
+      if (user.role == AppUserRole.guest) ...[
+        const SizedBox(height: 16),
+        Card(
+          color: const Color(0xFFFFF4EC),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.card_giftcard_rounded, color: brand),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Mã thành viên HHL Stay',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'HHL-${user.uid.length > 6 ? user.uid.substring(user.uid.length - 6).toUpperCase() : user.uid.toUpperCase()}',
+                        style: const TextStyle(color: muted),
+                      ),
+                      const Text(
+                        'Ưu đãi thành viên được áp dụng khi đặt phòng. Tích điểm giới thiệu chưa khả dụng trong bản demo.',
+                        style: TextStyle(color: muted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Sao chép mã',
+                  onPressed: () async {
+                    final suffix = user.uid.length > 6
+                        ? user.uid.substring(user.uid.length - 6).toUpperCase()
+                        : user.uid.toUpperCase();
+                    await Clipboard.setData(ClipboardData(text: 'HHL-$suffix'));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Đã sao chép mã thành viên.'),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy_rounded),
+                ),
+              ],
+            ),
+          ),
         ),
-        label: Text(user.role == AppUserRole.host ? 'Chủ nhà' : 'Khách'),
-      ),
-      const SizedBox(height: 20),
-      FilledButton.icon(
-        onPressed: () async {
-          await ref.read(authRepositoryProvider).signOut();
-          if (context.mounted) context.go('/login');
-        },
-        icon: const Icon(Icons.logout_rounded),
-        label: const Text('Đăng xuất'),
-      ),
+        const SizedBox(height: 16),
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.favorite_border_rounded,
+                  color: brand,
+                ),
+                title: const Text('Homestay yêu thích'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.go('/favorites'),
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: const Icon(Icons.luggage_outlined, color: brand),
+                title: const Text('Chuyến đi và đơn đặt'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.go('/bookings'),
+              ),
+              const Divider(height: 1, indent: 56),
+              const ExpansionTile(
+                leading: Icon(Icons.settings_outlined, color: brand),
+                title: Text('Cài đặt và hỗ trợ'),
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.notifications_none_rounded),
+                    title: Text('Thông báo đặt phòng'),
+                    subtitle: Text(
+                      'Thông báo trong ứng dụng khi bạn mở HHL Stay',
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.language_rounded),
+                    title: Text('Ngôn ngữ và khu vực'),
+                    subtitle: Text('Tiếng Việt · Việt Nam'),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.help_outline_rounded),
+                    title: Text('Hỏi đáp'),
+                    subtitle: Text(
+                      'Đơn chờ chủ nhà xác nhận; thanh toán tại homestay.',
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.shield_outlined),
+                    title: Text('Điều khoản và quyền riêng tư'),
+                    subtitle: Text('Dữ liệu demo được lưu trên thiết bị này.'),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.support_agent_rounded),
+                    title: Text('Liên hệ hỗ trợ'),
+                    subtitle: Text('Mở Trợ lý HHL Stay để được hướng dẫn.'),
+                  ),
+                ],
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined, color: brand),
+                title: const Text('Trợ lý HHL Stay'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.go('/ai-chat'),
+              ),
+            ],
+          ),
+        ),
+      ],
     ],
   );
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat(this.value, this.label, this.onTap);
+  const _Stat(this.value, this.label, this.onTap, {required this.icon});
   final String value, label;
   final VoidCallback onTap;
+  final IconData icon;
   @override
   Widget build(BuildContext context) => Card(
     child: InkWell(
@@ -321,16 +534,27 @@ class _Stat extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFFEEF2FF),
+              child: Icon(icon, color: brand, size: 20),
+            ),
+            const SizedBox(height: 10),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 27,
+                fontSize: 25,
                 fontWeight: FontWeight.w800,
                 color: brand,
               ),
             ),
-            Text(label, style: const TextStyle(color: muted, fontSize: 12)),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: muted, fontSize: 11),
+            ),
           ],
         ),
       ),

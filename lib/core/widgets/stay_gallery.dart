@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'stay_image.dart';
@@ -16,7 +18,21 @@ const _preferredCover = <String, int>{
   'nhatrang': 2,
 };
 
-List<StayImage> photosFor(String id) {
+List<StayImage> photosFor(String id, {List<String> imageSources = const []}) {
+  if (imageSources.isNotEmpty) {
+    return imageSources
+        .map(
+          (source) => StayImage(
+            source.startsWith('http') ? source : '',
+            'Ảnh do chủ nhà cung cấp',
+            'Chủ nhà',
+            source,
+            verified: false,
+            sourceNote: 'Ảnh do chủ nhà tải lên',
+          ),
+        )
+        .toList();
+  }
   var photos = stayPhotos[id];
   if (photos == null || photos.isEmpty) {
     final cityKey = stayPhotos.keys
@@ -34,16 +50,75 @@ List<StayImage> photosFor(String id) {
   ];
 }
 
+Widget buildStayImage(
+  String source, {
+  BoxFit fit = BoxFit.cover,
+  double? width,
+  double? height,
+  int? cacheWidth,
+  String? semanticLabel,
+  ImageFrameBuilder? frameBuilder,
+}) {
+  if (source.startsWith('data:image/')) {
+    final comma = source.indexOf(',');
+    if (comma > 0) {
+      try {
+        return Image.memory(
+          base64Decode(source.substring(comma + 1)),
+          fit: fit,
+          width: width,
+          height: height,
+          cacheWidth: cacheWidth,
+          semanticLabel: semanticLabel,
+          frameBuilder: frameBuilder,
+          errorBuilder: (_, _, _) => const ColoredBox(
+            color: Color(0xFFE8EAF2),
+            child: Icon(Icons.broken_image_outlined),
+          ),
+        );
+      } catch (_) {
+        // Fall through to the normal asset loader for malformed demo data.
+      }
+    }
+  }
+  if (source.startsWith('https://') || source.startsWith('http://')) {
+    return Image.network(
+      source,
+      fit: fit,
+      width: width,
+      height: height,
+      cacheWidth: cacheWidth,
+      semanticLabel: semanticLabel,
+      frameBuilder: frameBuilder,
+      errorBuilder: (_, _, _) => const ColoredBox(
+        color: Color(0xFFE8EAF2),
+        child: Icon(Icons.broken_image_outlined),
+      ),
+    );
+  }
+  return Image.asset(
+    source,
+    fit: fit,
+    width: width,
+    height: height,
+    cacheWidth: cacheWidth,
+    semanticLabel: semanticLabel,
+    frameBuilder: frameBuilder,
+  );
+}
+
 class StayGallery extends StatefulWidget {
   const StayGallery(
     this.id, {
     super.key,
     this.fullscreen = false,
     this.initial = 0,
+    this.imageUrls = const [],
   });
   final String id;
   final bool fullscreen;
   final int initial;
+  final List<String> imageUrls;
   @override
   State<StayGallery> createState() => _StayGalleryState();
 }
@@ -65,7 +140,7 @@ class _StayGalleryState extends State<StayGallery> {
 
   @override
   Widget build(BuildContext context) {
-    final photos = photosFor(widget.id);
+    final photos = photosFor(widget.id, imageSources: widget.imageUrls);
     final current = photos[_index];
     final viewer = Stack(
       children: [
@@ -77,7 +152,7 @@ class _StayGalleryState extends State<StayGallery> {
               itemCount: photos.length,
               onPageChanged: (i) => setState(() => _index = i),
               itemBuilder: (context, i) {
-                final photo = Image.asset(
+                final photo = buildStayImage(
                   photos[i].asset,
                   fit: widget.fullscreen ? BoxFit.contain : BoxFit.cover,
                   width: double.infinity,
@@ -94,6 +169,7 @@ class _StayGalleryState extends State<StayGallery> {
                                 widget.id,
                                 fullscreen: true,
                                 initial: i,
+                                imageUrls: widget.imageUrls,
                               ),
                             ),
                           ),
@@ -186,7 +262,7 @@ class _StayGalleryState extends State<StayGallery> {
                     Expanded(
                       child: Column(
                         children: [
-                          for (var i = 1; i < 3; i++) ...[
+                          for (var i = 1; i < 3 && i < photos.length; i++) ...[
                             if (i > 1) const SizedBox(height: 8),
                             Expanded(
                               child: InkWell(
@@ -196,7 +272,7 @@ class _StayGalleryState extends State<StayGallery> {
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
-                                      Image.asset(
+                                      buildStayImage(
                                         photos[i].asset,
                                         fit: BoxFit.cover,
                                         semanticLabel:
@@ -264,7 +340,7 @@ class _StayGalleryState extends State<StayGallery> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.asset(
+                    child: buildStayImage(
                       photos[i].asset,
                       fit: BoxFit.cover,
                       cacheWidth: 200,
@@ -286,11 +362,12 @@ class _StayGalleryState extends State<StayGallery> {
             child: Column(
               children: [
                 Text('Ảnh: ${current.author}', textAlign: TextAlign.center),
-                SelectableText(
-                  current.source,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, color: muted),
-                ),
+                if (current.source.isNotEmpty)
+                  SelectableText(
+                    current.source,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, color: muted),
+                  ),
                 const SizedBox(height: 8),
                 const Text(
                   'Ảnh từ nhiều địa điểm, dùng minh họa cho dữ liệu demo; không phải ảnh xác thực của homestay này.',

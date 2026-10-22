@@ -22,20 +22,21 @@ ThemeData buildTheme() {
   );
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'BeVietnamPro',
     colorScheme: scheme,
     scaffoldBackgroundColor: const Color(0xFFF8FAFC),
     textTheme: const TextTheme(
       headlineMedium: TextStyle(
-        fontSize: 27,
-        fontWeight: FontWeight.w800,
+        fontSize: 30,
+        fontWeight: FontWeight.w900,
         color: ink,
-        letterSpacing: -0.9,
+        letterSpacing: -0.7,
       ),
       titleLarge: TextStyle(
-        fontSize: 21,
-        fontWeight: FontWeight.w700,
+        fontSize: 23,
+        fontWeight: FontWeight.w800,
         color: ink,
-        letterSpacing: -0.6,
+        letterSpacing: -0.5,
       ),
       titleMedium: TextStyle(
         fontSize: 16,
@@ -51,7 +52,7 @@ ThemeData buildTheme() {
       centerTitle: false,
       scrolledUnderElevation: 0,
     ),
-    dividerTheme: const DividerThemeData(color: Color(0xFFEAE7E1), space: 24),
+    dividerTheme: const DividerThemeData(color: Color(0xFFE2E8F0), space: 24),
     cardTheme: CardThemeData(
       color: Colors.white,
       elevation: 1,
@@ -71,7 +72,7 @@ ThemeData buildTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: ink,
-        side: const BorderSide(color: Color(0xFFE5E5EB)),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -79,7 +80,7 @@ ThemeData buildTheme() {
     chipTheme: ChipThemeData(
       backgroundColor: Colors.white,
       selectedColor: const Color(0xFFEEF2FF),
-      side: const BorderSide(color: Color(0xFFE9E5DF)),
+      side: const BorderSide(color: Color(0xFFE2E8F0)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       labelStyle: const TextStyle(fontSize: 13, color: ink),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
@@ -100,7 +101,7 @@ ThemeData buildTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFFF5F3EF),
+      fillColor: const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.all(16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

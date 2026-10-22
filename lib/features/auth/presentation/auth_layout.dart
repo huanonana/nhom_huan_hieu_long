@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_gallery.dart';
 
 /// Shared responsive frame for guest and host authentication screens.
@@ -43,17 +44,34 @@ class AuthLayout extends StatelessWidget {
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(child: visual),
+                          Expanded(
+                            child: HoverMotion(
+                              scale: 1.012,
+                              lift: 4,
+                              child: visual,
+                            ),
+                          ),
                           const SizedBox(width: 56),
-                          SizedBox(width: 430, child: _FormCard(child: child)),
+                          SizedBox(
+                            width: 430,
+                            child: HoverMotion(
+                              scale: 1.008,
+                              lift: 3,
+                              child: _FormCard(child: child),
+                            ),
+                          ),
                         ],
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          visual,
+                          HoverMotion(scale: 1.012, lift: 3, child: visual),
                           const SizedBox(height: 18),
-                          _FormCard(child: child),
+                          HoverMotion(
+                            scale: 1.008,
+                            lift: 2,
+                            child: _FormCard(child: child),
+                          ),
                         ],
                       ),
               ),
@@ -104,11 +122,12 @@ class _AuthVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = photosFor(adminMode ? 'dalat' : 'sea').first.asset;
+    final showBenefits = title.startsWith('Tạo tài khoản');
     return Container(
-      height: compact ? 190 : 600,
+      height: compact ? (showBenefits ? 420 : 190) : (showBenefits ? 660 : 600),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF24205A),
+        color: adminMode ? const Color(0xFF111827) : const Color(0xFF24205A),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Stack(
@@ -121,7 +140,11 @@ class _AuthVisual extends StatelessWidget {
                 begin: compact ? Alignment.topLeft : Alignment.bottomLeft,
                 end: compact ? Alignment.bottomRight : Alignment.topRight,
                 colors: compact
-                    ? const [Color(0xFFF0EDFF), Color(0xFFFFF2E9)]
+                    ? adminMode
+                          ? const [Color(0xFFE2E8F0), Color(0xFFCBD5E1)]
+                          : const [Color(0xFFF0EDFF), Color(0xFFE0E7FF)]
+                    : adminMode
+                    ? const [Color(0xF011172A), Color(0x3011172A)]
                     : const [Color(0xE6171734), Color(0x16171734)],
               ),
             ),
@@ -133,6 +156,7 @@ class _AuthVisual extends StatelessWidget {
                     title: title,
                     description: description,
                     adminMode: adminMode,
+                    showBenefits: showBenefits,
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,6 +183,10 @@ class _AuthVisual extends StatelessWidget {
                           height: 1.65,
                         ),
                       ),
+                      if (showBenefits) ...[
+                        const SizedBox(height: 18),
+                        const _AuthBenefits(),
+                      ],
                       const SizedBox(height: 24),
                       const Row(
                         children: [
@@ -168,8 +196,8 @@ class _AuthVisual extends StatelessWidget {
                           ),
                           SizedBox(width: 10),
                           _TrustPill(
-                            icon: Icons.home_work_outlined,
-                            label: 'Chỗ ở thật',
+                            icon: Icons.info_outline_rounded,
+                            label: 'Giá minh bạch',
                           ),
                         ],
                       ),
@@ -187,10 +215,12 @@ class _CompactVisual extends StatelessWidget {
     required this.title,
     required this.description,
     required this.adminMode,
+    required this.showBenefits,
   });
   final String title;
   final String description;
   final bool adminMode;
+  final bool showBenefits;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -214,6 +244,67 @@ class _CompactVisual extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(color: muted, fontSize: 12, height: 1.35),
       ),
+      if (showBenefits) ...[
+        const SizedBox(height: 12),
+        const _AuthBenefits(compact: true),
+      ],
+    ],
+  );
+}
+
+class _AuthBenefits extends StatelessWidget {
+  const _AuthBenefits({this.compact = false});
+  final bool compact;
+
+  static const _items = [
+    'Giảm 5% giá phòng cho thành viên',
+    'Hủy miễn phí trước giờ nhận phòng 24 giờ',
+    'Thông tin tài khoản được bảo vệ',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (final item in _items) ...[
+        if (item != _items.first) SizedBox(height: compact ? 6 : 8),
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 10 : 12,
+            vertical: compact ? 7 : 9,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: compact ? .72 : .16),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+              color: compact ? const Color(0xFFE2E8F0) : Colors.white24,
+            ),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: compact ? 12 : 14,
+                backgroundColor: const Color(0xFFDCFCE7),
+                child: Icon(
+                  Icons.check_rounded,
+                  size: compact ? 15 : 17,
+                  color: const Color(0xFF15803D),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  item,
+                  style: TextStyle(
+                    color: compact ? ink : Colors.white,
+                    fontSize: compact ? 11 : 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     ],
   );
 }

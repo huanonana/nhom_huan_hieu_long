@@ -6,35 +6,56 @@ import '../state/demo_storage.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/domain/app_user.dart';
 import '../../features/auth/presentation/auth_provider.dart';
+import '../../features/auth/presentation/logout_action.dart';
 import '../../features/dashboard/presentation/calendar_page.dart';
 import '../../features/auth/presentation/profile_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/booking/presentation/booking_form_page.dart';
 import '../../features/booking/presentation/bookings_page.dart';
-import '../../features/booking/presentation/firebase_pages.dart';
-import '../../features/booking/presentation/firestore_repository_provider.dart';
 import '../../features/dashboard/presentation/host_page.dart';
+import '../../features/dashboard/presentation/finance_page.dart';
+import '../../features/dashboard/presentation/housekeeping_page.dart';
+import '../../features/dashboard/presentation/guest_directory_page.dart';
+import '../../features/dashboard/presentation/staff_page.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
 import '../../features/ai/presentation/ai_assistant_button.dart';
 import '../../features/homestay/presentation/detail_page.dart';
 import '../../features/homestay/presentation/explore_page.dart';
+import '../../features/homestay/presentation/home_page.dart';
 import '../../features/landing/presentation/landing_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
+      if (ref.read(signOutInProgressProvider)) return null;
+      final path = state.uri.path;
+      // Browsing stays public, but a booking must belong to a signed-in guest.
+      // Keep the complete booking URI so login returns to the same room and
+      // the in-memory date/guest selection remains available.
+      if (path.startsWith('/book/')) {
+        final authState = ref.read(currentUserProvider);
+        if (authState.isLoading) return null;
+        final user = authState.valueOrNull;
+        if (user == null) {
+          final returnTo = _validReturnPath(state.uri.queryParameters['back']);
+          return '/login?from=${Uri.encodeComponent(state.uri.toString())}'
+              '&back=${Uri.encodeComponent(returnTo)}';
+        }
+        if (user.role == AppUserRole.host) return '/host';
+      }
       if (ref.read(authModeProvider)) {
-        final path = state.uri.path;
         final onAdminLogin = path == '/admin/login';
         final onAuthPage =
             path == '/login' || path == '/register' || onAdminLogin;
-        final user = ref.read(currentUserProvider).valueOrNull;
+        final authState = ref.read(currentUserProvider);
+        // Avoid redirecting a signed-in user while the local session restores.
+        if (authState.isLoading) return null;
+        final user = authState.valueOrNull;
         if (user == null) {
           if (onAuthPage) return null;
           final requiresAccount =
-              path.startsWith('/book/') ||
               path.startsWith('/host') ||
               path == '/bookings' ||
               path == '/profile';
@@ -42,7 +63,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           final loginPath = path.startsWith('/host')
               ? '/admin/login'
               : '/login';
-          return '$loginPath?from=${Uri.encodeComponent(state.uri.toString())}';
+          final returnTo = _validReturnPath(state.uri.queryParameters['back']);
+          return '$loginPath?from=${Uri.encodeComponent(state.uri.toString())}'
+              '&back=${Uri.encodeComponent(returnTo)}';
         }
         if (onAdminLogin) {
           if (user.role == AppUserRole.host) {
@@ -54,6 +77,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Keep guests on the admin sign-in form so it can explain the role
           // mismatch and let them switch to a host account.
           return null;
+        }
+        if (user.role == AppUserRole.host &&
+            (path == '/home' || path == '/explore' || path == '/favorites')) {
+          return '/host';
         }
         if (user.role == AppUserRole.host && path == '/') return '/host';
         if (onAuthPage) {
@@ -72,10 +99,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       final host = ref.read(roleProvider) == DemoRole.host;
-      final path = state.uri.path;
       if (!host && path.startsWith('/host')) return '/profile';
       if (host &&
-          (path.startsWith('/book/') || path == '/' || path == '/favorites'))
+          (path.startsWith('/book/') ||
+              path == '/' ||
+              path == '/home' ||
+              path == '/explore' ||
+              path == '/favorites'))
         return '/host';
       return null;
     },
@@ -89,60 +119,86 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     routes: [
       GoRoute(path: '/', builder: (_, _) => const LandingPage()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (_, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const LoginPage(),
+          transitionsBuilder: (_, animation, _, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+        ),
+      ),
       GoRoute(
         path: '/admin/login',
-        builder: (_, _) => const LoginPage(adminMode: true),
+        pageBuilder: (_, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const LoginPage(adminMode: true),
+          transitionsBuilder: (_, animation, _, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+        ),
       ),
       GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
       ShellRoute(
         builder: (context, state, child) =>
             AppShell(path: state.uri.path, child: child),
         routes: [
-          GoRoute(
-            path: '/explore',
-            builder: (_, _) => ref.read(useFirebaseBackendProvider)
-                ? const FirebaseExplorePage()
-                : const ExplorePage(),
-          ),
+          GoRoute(path: '/home', builder: (_, _) => const HomePage()),
+          GoRoute(path: '/explore', builder: (_, _) => const ExplorePage()),
           GoRoute(
             path: '/favorites',
-            builder: (_, _) => ref.read(useFirebaseBackendProvider)
-                ? const FirebaseExplorePage(favoritesOnly: true)
-                : const ExplorePage(favoritesOnly: true),
+            builder: (_, _) => const ExplorePage(favoritesOnly: true),
           ),
           GoRoute(
             path: '/homestays/:id',
-            builder: (_, state) => ref.read(useFirebaseBackendProvider)
-                ? FirebaseDetailPage(id: state.pathParameters['id']!)
-                : DetailPage(id: state.pathParameters['id']!),
+            pageBuilder: (context, state) => CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: DetailPage(id: state.pathParameters['id']!),
+              transitionsBuilder: (context, animation, secondary, child) {
+                final eased = CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                );
+                return FadeTransition(
+                  opacity: eased,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, .035),
+                      end: Offset.zero,
+                    ).animate(eased),
+                    child: child,
+                  ),
+                );
+              },
+            ),
           ),
           GoRoute(
             path: '/book/:roomId',
-            builder: (_, state) => ref.read(useFirebaseBackendProvider)
-                ? FirebaseBookingFormPage(
-                    roomId: state.pathParameters['roomId']!,
-                  )
-                : BookingFormPage(roomId: state.pathParameters['roomId']!),
+            builder: (_, state) =>
+                BookingFormPage(roomId: state.pathParameters['roomId']!),
+          ),
+          GoRoute(path: '/bookings', builder: (_, _) => const BookingsPage()),
+          GoRoute(path: '/host', builder: (_, _) => const HostPage()),
+          GoRoute(
+            path: '/host/finance',
+            builder: (_, _) => const FinancePage(),
           ),
           GoRoute(
-            path: '/bookings',
-            builder: (_, _) => ref.read(useFirebaseBackendProvider)
-                ? const FirebaseBookingsPage()
-                : const BookingsPage(),
+            path: '/host/housekeeping',
+            builder: (_, _) => const HousekeepingPage(),
           ),
           GoRoute(
-            path: '/host',
-            builder: (_, _) => ref.read(useFirebaseBackendProvider)
-                ? const FirebaseHostPage()
-                : const HostPage(),
+            path: '/host/guests',
+            builder: (_, _) => const GuestDirectoryPage(),
           ),
+          GoRoute(path: '/host/staff', builder: (_, _) => const StaffPage()),
           GoRoute(path: '/ai-chat', builder: (_, _) => const AiChatPage()),
           GoRoute(
             path: '/host/calendar',
-            builder: (_, _) => ref.read(useFirebaseBackendProvider)
-                ? const FirebaseCalendarPage()
-                : const CalendarPage(),
+            builder: (_, _) => const CalendarPage(),
           ),
           GoRoute(path: '/profile', builder: (_, _) => const ProfilePage()),
         ],
@@ -150,13 +206,22 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
   ref.listen(authModeProvider, (_, _) => router.refresh());
-  if (ref.read(authModeProvider)) {
-    ref.listen(currentUserProvider, (_, _) => router.refresh());
-  }
+  ref.listen(currentUserProvider, (_, _) => router.refresh());
   ref.listen(roleProvider, (_, _) => router.refresh());
   ref.onDispose(router.dispose);
   return router;
 });
+
+String _validReturnPath(String? candidate) {
+  if (candidate == null ||
+      !candidate.startsWith('/') ||
+      candidate.startsWith('//') ||
+      candidate.startsWith('/login') ||
+      candidate.startsWith('/admin/login')) {
+    return '/explore';
+  }
+  return candidate;
+}
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.path, required this.child});
@@ -165,12 +230,10 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authMode = ref.watch(authModeProvider);
-    final currentUser = authMode
-        ? ref.watch(currentUserProvider).valueOrNull
-        : null;
-    final host = authMode
-        ? currentUser?.role == AppUserRole.host
+    ref.watch(authModeProvider);
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final host = currentUser != null
+        ? currentUser.role == AppUserRole.host
         : ref.watch(roleProvider) == DemoRole.host;
     final viewportWidth = MediaQuery.sizeOf(context).width;
     if (viewportWidth >= 900 && host) {
@@ -189,8 +252,14 @@ class AppShell extends ConsumerWidget {
       );
     }
     final paths = host
-        ? ['/host', '/explore', '/bookings', '/profile']
-        : ['/explore', '/favorites', '/bookings', '/profile'];
+        ? [
+            '/host',
+            '/host/finance',
+            '/host/housekeeping',
+            '/bookings',
+            '/profile',
+          ]
+        : ['/home', '/explore', '/favorites', '/bookings', '/profile'];
     final selected = paths.indexOf(path);
     return Scaffold(
       appBar: AppBar(
@@ -200,21 +269,21 @@ class AppShell extends ConsumerWidget {
             onPressed: () => context.go(
               host
                   ? '/profile'
-                  : authMode && currentUser == null
+                  : currentUser == null
                   ? '/login'
                   : '/profile',
             ),
             icon: Icon(
               host
                   ? Icons.admin_panel_settings_outlined
-                  : authMode && currentUser == null
+                  : currentUser == null
                   ? Icons.login_rounded
                   : Icons.person_outline,
             ),
             label: Text(
               host
                   ? 'Admin'
-                  : authMode && currentUser == null
+                  : currentUser == null
                   ? 'Đăng nhập'
                   : 'Tài khoản',
             ),
@@ -230,7 +299,7 @@ class AppShell extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: path == '/explore'
+      floatingActionButton: path == '/home' || path == '/explore'
           ? const AiAssistantButton()
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -245,22 +314,36 @@ class AppShell extends ConsumerWidget {
                 selectedIndex: selected < 0 ? 0 : selected,
                 onDestinationSelected: (i) => context.go(paths[i]),
                 destinations: [
+                  if (!host)
+                    const NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: 'Trang chủ',
+                    ),
                   NavigationDestination(
                     icon: Icon(
                       host ? Icons.dashboard_outlined : Icons.explore_outlined,
                     ),
                     label: host ? 'Quản lý' : 'Khám phá',
                   ),
-                  if (!host)
+                  if (host)
+                    const NavigationDestination(
+                      icon: Icon(Icons.account_balance_wallet_outlined),
+                      selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+                      label: 'Tài chính',
+                    ),
+                  if (host)
+                    const NavigationDestination(
+                      icon: Icon(Icons.cleaning_services_outlined),
+                      selectedIcon: Icon(Icons.cleaning_services_rounded),
+                      label: 'Buồng phòng',
+                    ),
+                  if (!host) ...[
                     const NavigationDestination(
                       icon: Icon(Icons.favorite_outline),
                       label: 'Yêu thích',
-                    )
-                  else
-                    const NavigationDestination(
-                      icon: Icon(Icons.explore_outlined),
-                      label: 'Khám phá',
                     ),
+                  ],
                   const NavigationDestination(
                     icon: Icon(Icons.event_note),
                     label: 'Đơn đặt',
@@ -314,12 +397,12 @@ class _StorageNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    color: const Color(0xFFFFF7ED),
+    color: const Color(0xFFEEF2FF),
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
     child: Text(
       notice,
       textAlign: TextAlign.center,
-      style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12),
+      style: const TextStyle(color: Color(0xFF4338CA), fontSize: 12),
     ),
   );
 }
@@ -352,10 +435,16 @@ class _GuestWebShell extends ConsumerWidget {
               child: Row(
                 children: [
                   InkWell(
-                    onTap: () => context.go('/'),
+                    onTap: () => context.go('/home'),
                     child: const _HhlLogo(),
                   ),
                   const Spacer(),
+                  if (MediaQuery.sizeOf(context).width >= 1200)
+                    _TopNavLink(
+                      label: 'Trang chủ',
+                      selected: path == '/home',
+                      onTap: () => context.go('/home'),
+                    ),
                   _TopNavLink(
                     label: 'Khám phá',
                     selected: path == '/explore',
@@ -392,13 +481,13 @@ class _GuestWebShell extends ConsumerWidget {
           child: Stack(
             children: [
               Positioned.fill(child: child),
-              if (path == '/explore')
+              if (path == '/home' || path == '/explore')
                 const Positioned(
                   right: 28,
                   bottom: 28,
                   child: AiAssistantButton(),
                 ),
-              if (path == '/explore')
+              if (path == '/home' || path == '/explore')
                 const Positioned(
                   top: 0,
                   left: 0,
@@ -453,7 +542,7 @@ class _TopNavLink extends StatelessWidget {
   );
 }
 
-class _AdminWebShell extends StatelessWidget {
+class _AdminWebShell extends ConsumerWidget {
   const _AdminWebShell({
     required this.path,
     required this.child,
@@ -463,7 +552,7 @@ class _AdminWebShell extends StatelessWidget {
   final Widget child;
   final String name;
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
     body: Row(
       children: [
         Container(
@@ -475,7 +564,7 @@ class _AdminWebShell extends StatelessWidget {
               SizedBox(
                 height: 82,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: [
                       Container(
@@ -491,7 +580,7 @@ class _AdminWebShell extends StatelessWidget {
                           size: 21,
                         ),
                       ),
-                      const SizedBox(width: 11),
+                      const SizedBox(width: 8),
                       const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,6 +627,30 @@ class _AdminWebShell extends StatelessWidget {
                 onTap: () => context.go('/host'),
               ),
               _AdminNavItem(
+                label: 'Tài chính',
+                icon: Icons.account_balance_wallet_outlined,
+                selected: path == '/host/finance',
+                onTap: () => context.go('/host/finance'),
+              ),
+              _AdminNavItem(
+                label: 'Buồng phòng',
+                icon: Icons.cleaning_services_outlined,
+                selected: path == '/host/housekeeping',
+                onTap: () => context.go('/host/housekeeping'),
+              ),
+              _AdminNavItem(
+                label: 'Khách hàng',
+                icon: Icons.groups_outlined,
+                selected: path == '/host/guests',
+                onTap: () => context.go('/host/guests'),
+              ),
+              _AdminNavItem(
+                label: 'Nhân sự & ca làm',
+                icon: Icons.badge_outlined,
+                selected: path == '/host/staff',
+                onTap: () => context.go('/host/staff'),
+              ),
+              _AdminNavItem(
                 label: 'Đơn đặt phòng',
                 icon: Icons.event_note_rounded,
                 selected: path == '/bookings',
@@ -549,15 +662,9 @@ class _AdminWebShell extends StatelessWidget {
                 selected: path == '/host/calendar',
                 onTap: () => context.go('/host/calendar'),
               ),
-              _AdminNavItem(
-                label: 'Khám phá',
-                icon: Icons.travel_explore_rounded,
-                selected: path == '/explore',
-                onTap: () => context.go('/explore'),
-              ),
               const Spacer(),
               _AdminNavItem(
-                label: 'Tài khoản',
+                label: 'Hồ sơ',
                 icon: Icons.person_outline_rounded,
                 selected: path == '/profile',
                 onTap: () => context.go('/profile'),
@@ -611,8 +718,16 @@ class _AdminWebShell extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Đăng xuất / tài khoản',
-                        onPressed: () => context.go('/profile'),
+                        tooltip: ref.read(authModeProvider)
+                            ? 'Đăng xuất'
+                            : 'Tài khoản',
+                        onPressed: () {
+                          if (ref.read(authModeProvider)) {
+                            signOutAndReturnToPublicPage(context, ref);
+                          } else {
+                            context.go('/profile');
+                          }
+                        },
                         icon: const Icon(
                           Icons.logout_rounded,
                           color: Color(0xFF94A3B8),
@@ -641,13 +756,21 @@ class _AdminWebShell extends StatelessWidget {
                     Text(
                       path == '/host'
                           ? 'Tổng quan'
+                          : path == '/host/finance'
+                          ? 'Tài chính'
+                          : path == '/host/housekeeping'
+                          ? 'Buồng phòng'
+                          : path == '/host/guests'
+                          ? 'Khách hàng'
+                          : path == '/host/staff'
+                          ? 'Nhân sự & ca làm'
                           : path == '/bookings'
                           ? 'Đơn đặt phòng'
                           : path == '/host/calendar'
                           ? 'Lịch phòng'
                           : path == '/profile'
-                          ? 'Tài khoản'
-                          : 'Khám phá',
+                          ? 'Hồ sơ quản trị'
+                          : 'Quản trị',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -660,12 +783,6 @@ class _AdminWebShell extends StatelessWidget {
                     Text(
                       DateTime.now().toString().substring(0, 10),
                       style: const TextStyle(color: muted, fontSize: 12),
-                    ),
-                    const SizedBox(width: 20),
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/explore'),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text('Trang khách'),
                     ),
                   ],
                 ),
@@ -718,12 +835,16 @@ class _AdminNavItem extends StatelessWidget {
                   : const Color(0xFF94A3B8),
             ),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : const Color(0xFFCBD5E1),
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFFCBD5E1),
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
           ],

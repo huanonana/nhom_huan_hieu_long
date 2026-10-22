@@ -4,7 +4,7 @@ import '../data/ai_service.dart';
 
 final aiServiceProvider = Provider<AiService>((ref) {
   final service = AiService(
-    apiKey: const String.fromEnvironment('ANTHROPIC_API_KEY'),
+    apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
   );
   ref.onDispose(service.close);
   return service;

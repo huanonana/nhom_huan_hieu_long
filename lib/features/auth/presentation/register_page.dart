@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/navigation.dart';
+import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/common.dart';
 import '../domain/app_user.dart';
 import 'auth_error_message.dart';
 import 'auth_layout.dart';
 import 'auth_provider.dart';
+import 'social_auth_buttons.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -50,7 +54,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _error = null;
     });
     try {
-      await ref
+      final user = await ref
           .read(authRepositoryProvider)
           .signUp(
             email: _email.text,
@@ -59,6 +63,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             displayName: _name.text,
           );
       if (mounted) {
+        ref.read(roleProvider.notifier).state = user.role == AppUserRole.host
+            ? DemoRole.host
+            : DemoRole.guest;
         final requested = GoRouterState.of(context).uri.queryParameters['from'];
         context.go(
           requested ?? (_role == AppUserRole.host ? '/host' : '/explore'),
@@ -89,39 +96,55 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 26),
-          TextFormField(
-            controller: _name,
-            decoration: const InputDecoration(
-              labelText: 'Tên hiển thị',
-              prefixIcon: Icon(Icons.person_outline),
+          const GuidanceTile(
+            steps:
+                'Điền tên, email và mật khẩu từ 6 ký tự. Tài khoản chỉ dùng trong phiên chạy thử hiện tại; dữ liệu không đồng bộ lên máy chủ.',
+          ),
+          HoverMotion(
+            scale: 1.012,
+            lift: 2,
+            child: TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(
+                labelText: 'Tên hiển thị',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Nhập tên hiển thị.'
+                  : null,
             ),
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Nhập tên hiển thị.'
-                : null,
           ),
           const SizedBox(height: 14),
-          TextFormField(
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
+          HoverMotion(
+            scale: 1.012,
+            lift: 2,
+            child: TextFormField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+              validator: (value) => value == null || !value.contains('@')
+                  ? 'Nhập email hợp lệ.'
+                  : null,
             ),
-            validator: (value) => value == null || !value.contains('@')
-                ? 'Nhập email hợp lệ.'
-                : null,
           ),
           const SizedBox(height: 14),
-          TextFormField(
-            controller: _password,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Mật khẩu',
-              prefixIcon: Icon(Icons.lock_outline),
+          HoverMotion(
+            scale: 1.012,
+            lift: 2,
+            child: TextFormField(
+              controller: _password,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Mật khẩu',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+              validator: (value) => value == null || value.length < 6
+                  ? 'Mật khẩu tối thiểu 6 ký tự.'
+                  : null,
             ),
-            validator: (value) => value == null || value.length < 6
-                ? 'Mật khẩu tối thiểu 6 ký tự.'
-                : null,
           ),
           const SizedBox(height: 18),
           const Text('Bạn đăng ký với vai trò'),
@@ -149,33 +172,53 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             ),
           ],
           const SizedBox(height: 22),
-          FilledButton(
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Đăng ký'),
+          HoverMotion(
+            scale: 1.025,
+            lift: 3,
+            child: FilledButton(
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Đăng ký'),
+            ),
           ),
+          const SizedBox(height: 18),
+          const SocialAuthButtons(),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () {
-              final from = GoRouterState.of(
-                context,
-              ).uri.queryParameters['from'];
+              final uri = GoRouterState.of(context).uri;
+              final params = <String, String>{
+                if (uri.queryParameters['from'] case final from?) 'from': from,
+                if (uri.queryParameters['back'] case final back?) 'back': back,
+              };
               context.go(
-                from == null
+                params.isEmpty
                     ? '/login'
-                    : '/login?from=${Uri.encodeComponent(from)}',
+                    : '/login?${Uri(queryParameters: params).query}',
               );
             },
             child: const Text('Đã có tài khoản? Đăng nhập'),
           ),
           TextButton.icon(
-            onPressed: () => context.go('/explore'),
+            onPressed: () {
+              final back = GoRouterState.of(
+                context,
+              ).uri.queryParameters['back'];
+              if (back != null &&
+                  back.startsWith('/') &&
+                  !back.startsWith('//')) {
+                context.go(back);
+              } else {
+                navigateBack(context, fallback: '/explore');
+              }
+            },
             icon: const Icon(Icons.arrow_back, size: 18),
-            label: const Text('Tiếp tục xem homestay'),
+            label: const Text('Quay lại'),
           ),
         ],
       ),

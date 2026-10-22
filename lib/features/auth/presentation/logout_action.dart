@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:async';
 
 import 'auth_provider.dart';
+import '../../../core/state/app_state.dart';
 
 Future<bool> signOutAndReturnToPublicPage(
   BuildContext context,
@@ -22,6 +23,7 @@ Future<bool> signOutAndReturnToPublicPage(
   try {
     final auth = ref.read(authRepositoryProvider);
     await auth.signOut();
+    ref.read(roleProvider.notifier).state = DemoRole.guest;
     await userCleared.future.timeout(
       const Duration(seconds: 3),
       onTimeout: () {},

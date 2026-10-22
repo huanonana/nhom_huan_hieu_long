@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum AppUserRole { guest, host }
 
 class AppUser {
@@ -9,6 +7,7 @@ class AppUser {
     required this.displayName,
     required this.role,
     required this.createdAt,
+    this.isAnonymous = false,
   });
 
   final String uid;
@@ -16,23 +15,23 @@ class AppUser {
   final String displayName;
   final AppUserRole role;
   final DateTime createdAt;
+  final bool isAnonymous;
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toJson() => {
     'uid': uid,
     'email': email,
     'displayName': displayName,
     'role': role.name,
-    'createdAt': Timestamp.fromDate(createdAt),
+    'createdAt': createdAt.toIso8601String(),
   };
 
-  factory AppUser.fromFirestore(Map<String, dynamic> data, {String? id}) {
-    final rawCreatedAt = data['createdAt'];
-    final createdAt = switch (rawCreatedAt) {
-      Timestamp value => value.toDate(),
-      DateTime value => value,
-      String value => DateTime.tryParse(value) ?? DateTime.now(),
-      _ => DateTime.now(),
-    };
+  factory AppUser.fromJson(
+    Map<String, dynamic> data, {
+    String? id,
+    bool isAnonymous = false,
+  }) {
+    final createdAt =
+        DateTime.tryParse(data['createdAt'] as String? ?? '') ?? DateTime.now();
     final roleName = data['role'] as String?;
     return AppUser(
       uid: data['uid'] as String? ?? id ?? '',
@@ -43,6 +42,7 @@ class AppUser {
         orElse: () => AppUserRole.guest,
       ),
       createdAt: createdAt,
+      isAnonymous: isAnonymous,
     );
   }
 }

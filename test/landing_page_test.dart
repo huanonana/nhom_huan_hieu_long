@@ -19,7 +19,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LandingPage), findsOneWidget);
-    expect(find.text('vui trọn chuyến đi.'), findsOneWidget);
+    expect(find.text('Tìm chốn nghỉ đúng gu,\n'), findsOneWidget);
+    expect(find.text('để chuyến đi đáng nhớ.'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(LandingPage.featuresKey),
       350,

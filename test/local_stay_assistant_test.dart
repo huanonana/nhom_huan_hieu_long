@@ -56,7 +56,7 @@ void main() {
       expect(answer, contains('650.000'));
       expect(answer, contains('Wi-Fi, Bếp'));
       expect(answer, isNot(contains('Nhà Phố')));
-      expect(answer, contains('Claude chưa được cấu hình'));
+      expect(answer, contains('AI chưa được cấu hình'));
     },
   );
 

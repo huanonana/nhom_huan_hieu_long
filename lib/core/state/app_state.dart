@@ -5,6 +5,9 @@ import '../../features/booking/data/demo_booking_repository.dart';
 import '../../features/booking/domain/booking.dart';
 import '../../features/booking/domain/booking_repository.dart';
 import '../../features/review/domain/review.dart';
+import '../../features/dashboard/domain/finance_entry.dart';
+import '../../features/dashboard/domain/staff_shift.dart';
+import '../../features/dashboard/domain/staff_member.dart';
 
 enum DemoRole { guest, host }
 
@@ -14,6 +17,16 @@ final repositoryProvider = Provider<BookingRepository>(
   (ref) => DemoBookingRepository(),
 );
 final favoritesProvider = StateProvider<Set<String>>((ref) => {});
+
+/// Recently viewed homestay IDs, newest first. Kept on this device in demo mode.
+final recentHomestaysProvider = StateProvider<List<String>>((ref) => const []);
+final financeEntriesProvider = StateProvider<List<FinanceEntry>>(
+  (ref) => const [],
+);
+final staffShiftsProvider = StateProvider<List<StaffShift>>((ref) => const []);
+final staffMembersProvider = StateProvider<List<StaffMember>>(
+  (ref) => const [],
+);
 final changesProvider = StateNotifierProvider<BookingController, int>(
   (ref) => BookingController(ref.watch(repositoryProvider)),
 );
@@ -24,32 +37,61 @@ class BookingController extends StateNotifier<int> {
   }
   final BookingRepository repository;
   late final Timer _timer;
+  void refreshFromStorage() => state++;
   Booking book({
     required String roomId,
     required String name,
+    String guestId = 'guest-demo',
     required DateTime start,
     required DateTime end,
     required int guests,
+    int memberDiscountPercent = 0,
+    int couponDiscountPercent = 0,
+    String couponCode = '',
     required String note,
   }) {
     final result = repository.create(
       roomId: roomId,
-      guestId: 'guest-demo',
+      guestId: guestId,
       guestName: name,
       checkIn: start,
       checkOut: end,
       guests: guests,
+      memberDiscountPercent: memberDiscountPercent,
+      couponDiscountPercent: couponDiscountPercent,
+      couponCode: couponCode,
       note: note,
     );
     state++;
     return result;
   }
 
-  void transition(String id, BookingStatus status, DemoRole role) {
+  void transition(
+    String id,
+    BookingStatus status,
+    DemoRole role, {
+    String? actorId,
+  }) {
     repository.transition(
       id,
       status,
-      actorId: role == DemoRole.host ? 'host-demo' : 'guest-demo',
+      actorId: actorId ?? (role == DemoRole.host ? 'host-demo' : 'guest-demo'),
+    );
+    state++;
+  }
+
+  void recordPayment(
+    String bookingId, {
+    required int amount,
+    required String method,
+    String note = '',
+  }) {
+    repository.recordPayment(
+      bookingId,
+      actorId: 'host-demo',
+      amount: amount,
+      method: method,
+      note: note,
     );
     state++;
   }
@@ -73,6 +115,15 @@ class BookingController extends StateNotifier<int> {
     state++;
   }
 
+  void setHousekeeping(String roomId, HousekeepingStatus status) {
+    final room = repository.rooms
+        .where((item) => item.id == roomId)
+        .firstOrNull;
+    if (room == null) throw const BookingException('Không tìm thấy phòng.');
+    repository.saveRoom(room.withHousekeeping(status), actorId: 'host-demo');
+    state++;
+  }
+
   void deleteRoom(String id) {
     repository.deleteRoom(id, actorId: 'host-demo');
     state++;
@@ -83,10 +134,15 @@ class BookingController extends StateNotifier<int> {
     state++;
   }
 
-  StayReview addReview(String bookingId, int rating, String comment) {
+  StayReview addReview(
+    String bookingId,
+    int rating,
+    String comment, {
+    String actorId = 'guest-demo',
+  }) {
     final review = repository.addReview(
       bookingId,
-      actorId: 'guest-demo',
+      actorId: actorId,
       rating: rating,
       comment: comment,
     );

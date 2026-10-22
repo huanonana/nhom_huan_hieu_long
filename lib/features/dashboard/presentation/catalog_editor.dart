@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/state/app_state.dart';
 import '../../ai/data/ai_service.dart';
 import '../../ai/presentation/ai_provider.dart';
 import '../../booking/domain/booking.dart';
 import '../../homestay/domain/catalog.dart';
+import '../../../core/widgets/stay_gallery.dart';
 
 Future<void> editCatalog(
   BuildContext context, {
@@ -35,7 +39,9 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
   late final List<TextEditingController> _fields;
   late bool _active;
   bool _generatingDescription = false;
+  bool _pickingImages = false;
   String? _error;
+  late final List<String> _images;
   @override
   void initState() {
     super.initState();
@@ -53,9 +59,11 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                     h?.address ?? '',
                     h?.description ?? '',
                     h?.amenities.join(', ') ?? 'Wi-Fi',
+                    if (h == null) ...['Phòng đầu tiên', '650000', '2'],
                   ])
             .map((v) => TextEditingController(text: v))
             .toList();
+    _images = List<String>.from(h?.imageUrls ?? const []);
     _active = r?.active ?? true;
   }
 
@@ -84,6 +92,8 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             price: int.tryParse(values[1]) ?? 0,
             capacity: int.tryParse(values[2]) ?? 0,
             active: _active,
+            housekeepingStatus:
+                widget.room?.housekeepingStatus ?? HousekeepingStatus.ready,
           ),
         );
       } else {
@@ -102,12 +112,53 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                 .toSet()
                 .toList(),
             color: widget.home?.color ?? 0xFF2F6757,
+            imageUrls: List<String>.from(_images),
           ),
         );
+        if (widget.home == null) {
+          controller.saveRoom(
+            Room(
+              id: '${id}-room-1',
+              homestayId: id,
+              name: values[5],
+              price: int.tryParse(values[6]) ?? 0,
+              capacity: int.tryParse(values[7]) ?? 0,
+            ),
+          );
+        }
       }
       Navigator.pop(context);
     } on BookingException catch (e) {
       setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _pickImages() async {
+    if (_pickingImages) return;
+    final remaining = 4 - _images.length;
+    if (remaining <= 0) {
+      setState(() => _error = 'Mỗi homestay có thể tải tối đa 4 ảnh.');
+      return;
+    }
+    setState(() {
+      _pickingImages = true;
+      _error = null;
+    });
+    try {
+      final selected = await ImagePicker().pickMultiImage(
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 72,
+      );
+      for (final image in selected.take(remaining)) {
+        final bytes = await image.readAsBytes();
+        final mime = image.mimeType ?? 'image/jpeg';
+        _images.add('data:$mime;base64,${base64Encode(bytes)}');
+      }
+    } catch (_) {
+      _error = 'Không đọc được ảnh. Hãy chọn ảnh JPG, PNG hoặc WebP.';
+    } finally {
+      if (mounted) setState(() => _pickingImages = false);
     }
   }
 
@@ -128,16 +179,9 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             amenities,
           );
       if (!mounted) return;
-      if (result == AiService.unavailableMessage ||
-          result == AiService.friendlyErrorMessage) {
+      if (AiService.isErrorMessage(result)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result == AiService.unavailableMessage
-                  ? 'Tính năng AI chưa khả dụng. Bạn có thể tự nhập mô tả.'
-                  : 'Chưa thể kết nối AI. Bạn có thể tự nhập mô tả.',
-            ),
-          ),
+          SnackBar(content: Text('$result Bạn có thể tự nhập mô tả.')),
         );
       } else {
         _fields[3].value = TextEditingValue(
@@ -160,6 +204,11 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             'Địa chỉ',
             'Mô tả',
             'Tiện nghi (ngăn cách bằng dấu phẩy)',
+            if (widget.home == null) ...[
+              'Tên phòng đầu tiên',
+              'Giá mỗi đêm (đ)',
+              'Sức chứa (khách)',
+            ],
           ];
     final icons = widget.roomMode
         ? [
@@ -173,6 +222,11 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             Icons.location_on_outlined,
             Icons.description_outlined,
             Icons.wifi_tethering_outlined,
+            if (widget.home == null) ...[
+              Icons.bed_outlined,
+              Icons.payments_outlined,
+              Icons.people_alt_outlined,
+            ],
           ];
     return AlertDialog(
       title: Text(
@@ -188,6 +242,13 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (!widget.roomMode && widget.home == null)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 14),
+                    child: Text(
+                      'Thêm thông tin, ảnh và phòng đầu tiên trong cùng một bước.',
+                    ),
+                  ),
                 for (var i = 0; i < labels.length; i++) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
@@ -197,7 +258,11 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                         labelText: labels[i],
                         prefixIcon: Icon(icons[i]),
                       ),
-                      keyboardType: widget.roomMode && i > 0
+                      keyboardType:
+                          (widget.roomMode && i > 0) ||
+                              (!widget.roomMode &&
+                                  widget.home == null &&
+                                  i >= 6)
                           ? TextInputType.number
                           : TextInputType.text,
                       onChanged: !widget.roomMode && i == 0
@@ -205,13 +270,35 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                           : null,
                       maxLength: widget.roomMode
                           ? (i == 0 ? 100 : 9)
-                          : [100, 100, 300, 2000, 300][i],
+                          : [100, 100, 300, 2000, 300, 100, 9, 3][i],
                       minLines: !widget.roomMode && i == 3 ? 3 : 1,
                       maxLines: !widget.roomMode && i == 3 ? 5 : 1,
-                      validator: (v) =>
-                          i != 4 && (v == null || v.trim().isEmpty)
-                          ? 'Vui lòng nhập ${labels[i].toLowerCase()}.'
-                          : null,
+                      validator: (v) {
+                        if (i != 4 && (v == null || v.trim().isEmpty)) {
+                          return 'Vui lòng nhập ${labels[i].toLowerCase()}.';
+                        }
+                        final priceIndex = widget.roomMode ? 1 : 6;
+                        final capacityIndex = widget.roomMode ? 2 : 7;
+                        if ((widget.roomMode || widget.home == null) &&
+                            i == priceIndex) {
+                          final price = int.tryParse(v ?? '');
+                          if (price == null ||
+                              price < 10000 ||
+                              price > 100000000) {
+                            return 'Giá phải từ 10.000 đến 100.000.000 ₫.';
+                          }
+                        }
+                        if ((widget.roomMode || widget.home == null) &&
+                            i == capacityIndex) {
+                          final capacity = int.tryParse(v ?? '');
+                          if (capacity == null ||
+                              capacity < 1 ||
+                              capacity > 30) {
+                            return 'Sức chứa phải từ 1 đến 30 khách.';
+                          }
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   if (!widget.roomMode && i == 3)
@@ -247,6 +334,70 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                         ),
                       ),
                     ),
+                ],
+                if (!widget.roomMode) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ảnh chỗ nghỉ (${_images.length}/4)',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_images.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < _images.length; i++)
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: buildStayImage(
+                                  _images[i],
+                                  width: 86,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: IconButton.filledTonal(
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () =>
+                                      setState(() => _images.removeAt(i)),
+                                  icon: const Icon(Icons.close, size: 15),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _pickingImages ? null : _pickImages,
+                      icon: _pickingImages
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        _pickingImages
+                            ? 'Đang tải ảnh…'
+                            : 'Chọn ảnh từ thiết bị',
+                      ),
+                    ),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ảnh được lưu trong dữ liệu demo trên thiết bị này.',
+                    ),
+                  ),
                 ],
                 if (widget.roomMode)
                   SwitchListTile(

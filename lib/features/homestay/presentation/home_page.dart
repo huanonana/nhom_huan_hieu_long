@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_gallery.dart';
-import '../../booking/presentation/firestore_repository_provider.dart';
 import '../../homestay/domain/catalog.dart';
 import '../../../core/state/app_state.dart';
 
@@ -14,22 +13,8 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(useFirebaseBackendProvider)) {
-      final repository = ref.watch(repositoryProvider);
-      return _HomeContent(homes: repository.homestays, rooms: repository.rooms);
-    }
-
-    final homes = ref.watch(firestoreHomestaysProvider);
-    final rooms = ref.watch(firestoreRoomsProvider);
-    return homes.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => const _HomeLoadError(),
-      data: (homeItems) => rooms.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const _HomeLoadError(),
-        data: (roomItems) => _HomeContent(homes: homeItems, rooms: roomItems),
-      ),
-    );
+    final repository = ref.watch(repositoryProvider);
+    return _HomeContent(homes: repository.homestays, rooms: repository.rooms);
   }
 }
 
@@ -55,6 +40,8 @@ class _HomeContent extends StatelessWidget {
           onExplore: () => context.go('/explore'),
           onAskAi: () => context.go('/ai-chat'),
         ),
+        const SizedBox(height: 16),
+        _MemberOfferCard(onExplore: () => context.go('/explore')),
         const SizedBox(height: 32),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -180,6 +167,67 @@ class _HomeContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class _MemberOfferCard extends StatelessWidget {
+  const _MemberOfferCard({required this.onExplore});
+  final VoidCallback onExplore;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF5ED),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0xFFFFE1CC)),
+    ),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 540;
+        final copy = Row(
+          children: [
+            const CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(Icons.local_offer_outlined, color: Color(0xFFDB6B2D)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ưu đãi chuyến đi',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Thử mã HHL10 để giảm 10% khi đặt phòng · Ưu đãi demo',
+                    style: TextStyle(color: muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        final action = FilledButton(
+          onPressed: onExplore,
+          child: const Text('Tìm chỗ nghỉ'),
+        );
+        return narrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [copy, const SizedBox(height: 12), action],
+              )
+            : Row(
+                children: [
+                  Expanded(child: copy),
+                  const SizedBox(width: 16),
+                  action,
+                ],
+              );
+      },
+    ),
+  );
 }
 
 class _HomeHero extends StatelessWidget {
@@ -425,7 +473,7 @@ class _DestinationTile extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    final photo = photosFor(home.id).first;
+    final photo = photosFor(home.id, imageSources: home.imageUrls).first;
     return SizedBox(
       width: 230,
       child: Material(
@@ -436,7 +484,7 @@ class _DestinationTile extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(photo.asset, fit: BoxFit.cover),
+              buildStayImage(photo.asset, fit: BoxFit.cover),
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -490,7 +538,7 @@ class _FeaturedStayCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    final photo = photosFor(home.id).first;
+    final photo = photosFor(home.id, imageSources: home.imageUrls).first;
     final prices = rooms.map((room) => room.price).toList()..sort();
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -503,7 +551,7 @@ class _FeaturedStayCard extends StatelessWidget {
             children: [
               AspectRatio(
                 aspectRatio: 1.55,
-                child: Image.asset(photo.asset, fit: BoxFit.cover),
+                child: buildStayImage(photo.asset, fit: BoxFit.cover),
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -616,20 +664,6 @@ class _HomeEmptyState extends StatelessWidget {
         'Chưa có homestay để giới thiệu. Hãy khám phá lại sau nhé.',
         textAlign: TextAlign.center,
         style: TextStyle(color: muted),
-      ),
-    ),
-  );
-}
-
-class _HomeLoadError extends StatelessWidget {
-  const _HomeLoadError();
-  @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(24),
-      child: Text(
-        'Chưa tải được trang chủ. Vui lòng thử lại.',
-        textAlign: TextAlign.center,
       ),
     ),
   );

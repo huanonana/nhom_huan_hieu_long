@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/router/navigation.dart';
 import '../../../core/widgets/common.dart';
 import '../domain/booking.dart';
 import '../../../core/widgets/stay_widgets.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/domain/app_user.dart';
+import '../../auth/presentation/auth_provider.dart';
 
 class BookingFormPage extends ConsumerStatefulWidget {
   const BookingFormPage({super.key, required this.roomId});
@@ -18,26 +21,25 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(text: 'Khách trải nghiệm');
   final _note = TextEditingController();
+  final _coupon = TextEditingController();
   DateTimeRange? _dates;
   int _guests = 1;
   bool _busy = false;
+  bool _couponApplied = false;
+  String? _couponMessage;
   @override
   void initState() {
     super.initState();
     final search = ref.read(staySearchProvider);
     _dates = search.dates;
-    final room = ref
-        .read(repositoryProvider)
-        .rooms
-        .where((r) => r.id == widget.roomId)
-        .firstOrNull;
-    _guests = search.guests.clamp(1, room?.capacity ?? 1);
+    _guests = search.guests;
   }
 
   @override
   void dispose() {
     _name.dispose();
     _note.dispose();
+    _coupon.dispose();
     super.dispose();
   }
 
@@ -55,6 +57,19 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
 
   Future<void> _submit() async {
     if (_busy || !_form.currentState!.validate()) return;
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) {
+      final bookingPath = GoRouterState.of(context).uri.toString();
+      context.go(
+        '/login?from=${Uri.encodeComponent(bookingPath)}'
+        '&back=${Uri.encodeComponent('/explore')}',
+      );
+      return;
+    }
+    if (user.role != AppUserRole.guest) {
+      context.go('/host');
+      return;
+    }
     if (_dates == null) {
       showError(context, 'Vui lòng chọn ngày ở.');
       return;
@@ -68,13 +83,32 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
       showError(context, 'Phòng không còn tồn tại.');
       return;
     }
+    if (_guests > room.capacity) {
+      showError(
+        context,
+        'Phòng chứa tối đa ${room.capacity} khách. Giảm số khách hoặc chọn phòng khác.',
+      );
+      return;
+    }
+    final memberDiscount = 5;
+    final couponDiscount = _couponApplied ? 10 : 0;
+    final discountPercent = memberDiscount + couponDiscount;
+    final nights = _dates!.duration.inDays;
+    final subtotal = room.price * nights;
     setState(() => _busy = true);
     final agreed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Kiểm tra chuyến đi'),
+        actionsAlignment: MainAxisAlignment.end,
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowDirection: VerticalDirection.down,
+        actionsOverflowButtonSpacing: 6,
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         content: Text(
-          '${room.name}\n${dateLabel(_dates!.start)} → ${dateLabel(_dates!.end)}\n$_guests khách • ${_dates!.duration.inDays} đêm\nTổng cộng: ${money(room.price * _dates!.duration.inDays)}\n\nThanh toán tại homestay. Yêu cầu cần chủ nhà xác nhận.',
+          '${room.name}\n${dateLabel(_dates!.start)} → ${dateLabel(_dates!.end)}\n$_guests khách • $nights đêm\nTiền phòng: ${money(subtotal)}'
+          '${discountPercent > 0 ? '\nƯu đãi: −${money(subtotal * discountPercent ~/ 100)} ($discountPercent%)' : ''}'
+          '\nTổng cộng: ${money(subtotal - subtotal * discountPercent ~/ 100)}\n\nThanh toán tại homestay. Yêu cầu cần chủ nhà xác nhận; đơn đã xác nhận được hủy miễn phí trước giờ nhận phòng 24 giờ.',
         ),
         actions: [
           TextButton(
@@ -99,14 +133,20 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
           .book(
             roomId: widget.roomId,
             name: _name.text,
+            guestId: user.uid,
             start: _dates!.start,
             end: _dates!.end,
             guests: _guests,
+            memberDiscountPercent: memberDiscount,
+            couponDiscountPercent: couponDiscount,
+            couponCode: _couponApplied ? _coupon.text : '',
             note: _note.text,
           );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã gửi yêu cầu. Chủ nhà sẽ duyệt trong 24 giờ.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF312E81),
+          content: BookingSuccessMessage(),
         ),
       );
       context.go('/bookings');
@@ -124,6 +164,10 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
     final matches = repo.rooms.where((r) => r.id == widget.roomId);
     if (matches.isEmpty) return const EmptyState('Không tìm thấy phòng.');
     final room = matches.single;
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final memberDiscount = currentUser?.role == AppUserRole.guest ? 5 : 0;
+    final couponDiscount = _couponApplied ? 10 : 0;
+    final discountPercent = memberDiscount + couponDiscount;
     final nights = _dates == null
         ? 0
         : stayDate(_dates!.end).difference(stayDate(_dates!.start)).inDays;
@@ -136,9 +180,12 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: () => context.go('/homestays/${room.homestayId}'),
+            onPressed: () => navigateBack(
+              context,
+              fallback: '/homestays/${room.homestayId}',
+            ),
             icon: const Icon(Icons.arrow_back),
-            label: const Text('Chi tiết homestay'),
+            label: const Text('Quay lại'),
           ),
         ),
         Text(
@@ -160,6 +207,10 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
           ),
         ),
         const SizedBox(height: 24),
+        const GuidanceTile(
+          steps:
+              'Nhập tên khách, chọn ngày nhận và trả phòng, chọn số khách rồi kiểm tra tổng tiền trước khi gửi yêu cầu.',
+        ),
         Form(
           key: _form,
           child: Column(
@@ -194,14 +245,10 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
                   style: TextStyle(color: Colors.red),
                 ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                initialValue: _guests,
-                decoration: const InputDecoration(labelText: 'Số khách'),
-                items: [
-                  for (var i = 1; i <= room.capacity; i++)
-                    DropdownMenuItem(value: i, child: Text('$i khách')),
-                ],
-                onChanged: (v) => setState(() => _guests = v!),
+              GuestCountStepper(
+                value: _guests,
+                max: room.capacity,
+                onChanged: (value) => setState(() => _guests = value),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -213,6 +260,75 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (currentUser?.role == AppUserRole.guest)
+          _MemberBenefitCard(name: currentUser?.displayName ?? ''),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mã ưu đãi',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _coupon,
+                        textCapitalization: TextCapitalization.characters,
+                        enabled: !_couponApplied,
+                        decoration: const InputDecoration(
+                          hintText: 'Nhập mã HHL10',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _couponApplied
+                          ? () => setState(() {
+                              _couponApplied = false;
+                              _couponMessage = null;
+                            })
+                          : () => setState(() {
+                              _couponApplied =
+                                  _coupon.text.trim().toUpperCase() == 'HHL10';
+                              _couponMessage = _couponApplied
+                                  ? 'Đã áp dụng giảm 10% cho đơn demo.'
+                                  : 'Mã chưa đúng. Hãy thử HHL10.';
+                            }),
+                      child: Text(_couponApplied ? 'Gỡ mã' : 'Áp dụng'),
+                    ),
+                  ],
+                ),
+                if (_couponMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      _couponMessage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _couponApplied
+                            ? const Color(0xFF16835D)
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Mã thử nghiệm HHL10 · có thể kết hợp ưu đãi thành viên.',
+                    style: TextStyle(color: muted, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -228,17 +344,28 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
                 ),
                 const SizedBox(height: 12),
                 Text('${money(room.price)} × ${validDates ? nights : '—'} đêm'),
+                if (validDates && discountPercent > 0) ...[
+                  const SizedBox(height: 8),
+                  if (memberDiscount > 0)
+                    Text(
+                      'Thành viên · −${money(room.price * nights * memberDiscount ~/ 100)}',
+                    ),
+                  if (couponDiscount > 0)
+                    Text(
+                      'Mã HHL10 · −${money(room.price * nights * couponDiscount ~/ 100)}',
+                    ),
+                ],
                 const Divider(),
                 Text(
                   validDates
-                      ? 'Tổng cộng: ${money(room.price * nights)}'
+                      ? 'Tổng cộng: ${money(room.price * nights - room.price * nights * discountPercent ~/ 100)}'
                       : 'Chọn ngày để xem tổng tiền',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
                 const Text(
                   'Không phụ phí trong bản thử. Thanh toán tại homestay. '
-                  'Đơn chờ giữ phòng tối đa 24 giờ; bạn có thể hủy khi chưa được duyệt.',
+                  'Đơn chờ giữ phòng tối đa 24 giờ; đơn đã xác nhận được hủy miễn phí trước giờ nhận phòng 24 giờ.',
                 ),
               ],
             ),
@@ -246,7 +373,10 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
         ),
         const SizedBox(height: 20),
         FilledButton.icon(
-          onPressed: _busy || !available || !validDates ? null : _submit,
+          onPressed:
+              _busy || !available || !validDates || _guests > room.capacity
+              ? null
+              : _submit,
           icon: const Icon(Icons.check),
           label: const Padding(
             padding: EdgeInsets.all(14),
@@ -256,4 +386,26 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
       ],
     );
   }
+}
+
+class _MemberBenefitCard extends StatelessWidget {
+  const _MemberBenefitCard({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: const Color(0xFFF0FDF7),
+    child: ListTile(
+      leading: const CircleAvatar(
+        backgroundColor: Color(0xFFD1FAE5),
+        child: Icon(Icons.loyalty_outlined, color: Color(0xFF16835D)),
+      ),
+      title: Text(name.isEmpty ? 'Ưu đãi thành viên' : 'Chào $name'),
+      subtitle: const Text('Giảm 5% tự động cho tài khoản khách đã đăng nhập.'),
+      trailing: const Text(
+        '−5%',
+        style: TextStyle(color: Color(0xFF16835D), fontWeight: FontWeight.w800),
+      ),
+    ),
+  );
 }

@@ -1,7 +1,7 @@
 import '../../homestay/domain/catalog.dart';
 import '../../../core/widgets/common.dart';
 
-/// Small, offline catalog assistant used when no Anthropic key is configured.
+/// Small, offline catalog assistant used when no Gemini key is configured.
 /// It only recommends stays and prices that exist in the current app data.
 class LocalStayAssistant {
   const LocalStayAssistant._();
@@ -74,7 +74,7 @@ class LocalStayAssistant {
     return '$heading\n$suggestions\n\n'
         'Đây là gợi ý theo dữ liệu homestay và phòng hiện có; bạn hãy mở chi tiết '
         'để kiểm tra lịch trống và thông tin mới nhất. '
-        'Claude chưa được cấu hình nên mình đang hỗ trợ offline.';
+        'AI chưa được cấu hình nên mình đang hỗ trợ offline.';
   }
 
   static String _cities(List<Homestay> homes) => homes

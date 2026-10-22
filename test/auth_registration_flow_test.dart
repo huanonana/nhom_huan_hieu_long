@@ -4,12 +4,56 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_huan_hieu/core/router/app_router.dart';
+import 'package:nhom_huan_hieu/core/state/app_state.dart';
 import 'package:nhom_huan_hieu/features/auth/domain/app_user.dart';
 import 'package:nhom_huan_hieu/features/auth/domain/auth_repository.dart';
 import 'package:nhom_huan_hieu/features/auth/presentation/auth_provider.dart';
 import 'package:nhom_huan_hieu/main.dart';
 
 void main() {
+  testWidgets(
+    'booking redirects signed-out visitors to login and preserves return path',
+    (tester) async {
+      tester.view.physicalSize = const Size(1100, 850);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final userUpdates = StreamController<AppUser?>.broadcast();
+      final container = ProviderContainer(
+        overrides: [
+          authModeProvider.overrideWithValue(true),
+          currentUserProvider.overrideWith((ref) => userUpdates.stream),
+        ],
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const MyApp()),
+      );
+      await tester.pump();
+      userUpdates.add(null);
+      await tester.pumpAndSettle();
+      container.read(routerProvider).go('/book/room-1');
+      await tester.pumpAndSettle();
+      expect(
+        container.read(routerProvider).routeInformationProvider.value.uri.path,
+        '/login',
+      );
+      expect(
+        container
+            .read(routerProvider)
+            .routeInformationProvider
+            .value
+            .uri
+            .queryParameters['from'],
+        '/book/room-1',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      container.dispose();
+      await userUpdates.close();
+    },
+  );
+
   testWidgets('registration layout stays scrollable on a narrow phone', (
     tester,
   ) async {
@@ -130,6 +174,137 @@ void main() {
     container.dispose();
     auth.dispose();
   });
+
+  testWidgets('guest login restores the requested booking route', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final auth = _LoginAuthRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authModeProvider.overrideWithValue(true),
+        authRepositoryProvider.overrideWithValue(auth),
+        currentUserProvider.overrideWith((ref) => auth.currentUser),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/login?from=%2Fbook%2Fpine-1');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'guest-test@example.invalid',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'guest-pass-123');
+    await tester.tap(find.text('Đăng nhập').first);
+    await tester.pumpAndSettle();
+
+    expect(auth.signInCalls, hasLength(1));
+    expect(
+      container.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/book/pine-1',
+    );
+    expect(container.read(roleProvider).name, 'guest');
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    auth.dispose();
+  });
+
+  testWidgets('host login enters management dashboard', (tester) async {
+    tester.view.physicalSize = const Size(1100, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final auth = _LoginAuthRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authModeProvider.overrideWithValue(true),
+        authRepositoryProvider.overrideWithValue(auth),
+        currentUserProvider.overrideWith((ref) => auth.currentUser),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/admin/login?from=%2Fhost');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'host-test@example.invalid',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'host-pass-123');
+    await tester.tap(find.text('Đăng nhập quản lý').last);
+    await tester.pumpAndSettle();
+
+    expect(auth.signInCalls, hasLength(1));
+    expect(auth.currentUserNow?.role, AppUserRole.host);
+    expect(
+      container.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/host',
+    );
+    expect(find.text('Đơn đặt phòng'), findsOneWidget);
+    expect(find.text('Khám phá'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    auth.dispose();
+  });
+
+  testWidgets('guest credentials cannot open the host management login', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final auth = _LoginAuthRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authModeProvider.overrideWithValue(true),
+        authRepositoryProvider.overrideWithValue(auth),
+        currentUserProvider.overrideWith((ref) => auth.currentUser),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/admin/login');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'guest-test@example.invalid',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'guest-pass-123');
+    await tester.tap(find.text('Đăng nhập quản lý').last);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Chủ nhà/Admin'), findsOneWidget);
+    expect(
+      container.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/admin/login',
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    auth.dispose();
+  });
 }
 
 class _RegistrationAuthRepository implements AuthRepository {
@@ -166,6 +341,66 @@ class _RegistrationAuthRepository implements AuthRepository {
   @override
   Future<AppUser> signIn({required String email, required String password}) =>
       throw UnimplementedError();
+
+  @override
+  Future<void> signOut() async {
+    _user = null;
+    _updates.add(null);
+  }
+
+  @override
+  Future<void> updateRole(String uid, AppUserRole role) =>
+      throw UnimplementedError();
+
+  void dispose() => _updates.close();
+}
+
+class _LoginAuthRepository implements AuthRepository {
+  final _updates = StreamController<AppUser?>.broadcast();
+  AppUser? _user;
+  final signInCalls = <(String, String)>[];
+  AppUser? get currentUserNow => _user;
+
+  @override
+  Stream<AppUser?> get currentUser => Stream.multi((controller) {
+    controller.add(_user);
+    final subscription = _updates.stream.listen(controller.add);
+    controller.onCancel = subscription.cancel;
+  });
+
+  @override
+  Future<AppUser> signIn({
+    required String email,
+    required String password,
+  }) async {
+    signInCalls.add((email, password));
+    final role = switch (email) {
+      'guest-test@example.invalid' when password == 'guest-pass-123' =>
+        AppUserRole.guest,
+      'host-test@example.invalid' when password == 'host-pass-123' =>
+        AppUserRole.host,
+      _ => throw Exception('Email hoặc mật khẩu không đúng.'),
+    };
+    _user = AppUser(
+      uid: 'test-${role.name}',
+      email: email,
+      displayName: role == AppUserRole.host
+          ? 'Chủ nhà kiểm thử'
+          : 'Khách kiểm thử',
+      role: role,
+      createdAt: DateTime(2026),
+    );
+    _updates.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<AppUser> signUp({
+    required String email,
+    required String password,
+    required AppUserRole role,
+    String? displayName,
+  }) => throw UnimplementedError();
 
   @override
   Future<void> signOut() async {

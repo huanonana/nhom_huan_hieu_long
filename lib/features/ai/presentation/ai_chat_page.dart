@@ -6,7 +6,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../homestay/domain/catalog.dart';
-import '../../booking/presentation/firestore_repository_provider.dart';
+import '../data/ai_service.dart';
 import '../domain/ai_message.dart';
 import '../domain/local_stay_assistant.dart';
 import 'ai_provider.dart';
@@ -28,6 +28,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     AiMessage(role: AiMessageRole.assistant, content: _welcomeText),
   ];
   bool _sending = false;
+  bool? _apiAvailable;
+  String? _projectAccessError;
 
   @override
   void dispose() {
@@ -106,9 +108,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ? previous.sublist(previous.length - 9)
         : previous;
     String reply;
+    final service = ref.read(aiServiceProvider);
     try {
-      final service = ref.read(aiServiceProvider);
-      reply = service.apiKey.trim().isEmpty
+      reply = !service.isConfigured
           ? LocalStayAssistant.reply(
               query: text,
               homestays: homes,
@@ -120,10 +122,36 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               systemContext: _catalogContext(homes, rooms),
             );
     } catch (_) {
-      reply = 'Không thể kết nối AI lúc này';
+      reply = AiService.friendlyErrorMessage;
+    }
+    final projectDenied =
+        service.isConfigured &&
+        reply.startsWith('Gemini từ chối yêu cầu (403):');
+    if (projectDenied) {
+      final diagnostic = reply;
+      final localReply =
+          LocalStayAssistant.reply(
+            query: text,
+            homestays: homes,
+            rooms: rooms,
+          ).replaceFirst(
+            'AI chưa được cấu hình nên mình đang hỗ trợ offline.',
+            'Gemini đang tạm thời không truy cập được nên mình đang gợi ý '
+                'theo dữ liệu có sẵn.',
+          );
+      reply = '$localReply\n\n$diagnostic';
     }
     if (!mounted) return;
     setState(() {
+      if (service.isConfigured) {
+        _apiAvailable = !AiService.isErrorMessage(reply);
+        if (projectDenied) {
+          _apiAvailable = false;
+          _projectAccessError =
+              'Gemini bị Google từ chối quyền project (403). Mình đang gợi ý '
+              'từ dữ liệu homestay có sẵn; hãy kiểm tra quyền project trong AI Studio.';
+        }
+      }
       _messages.add(AiMessage(role: AiMessageRole.assistant, content: reply));
       _sending = false;
     });
@@ -132,21 +160,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(useFirebaseBackendProvider)) {
-      final homes = ref.watch(firestoreHomestaysProvider);
-      final rooms = ref.watch(firestoreRoomsProvider);
-      return homes.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) =>
-            const Center(child: Text('Không tải được danh sách homestay.')),
-        data: (items) => rooms.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) =>
-              const Center(child: Text('Không tải được danh sách phòng.')),
-          data: (roomItems) => _buildChat(items, roomItems),
-        ),
-      );
-    }
     ref.watch(changesProvider);
     final repo = ref.watch(repositoryProvider);
     final homes = repo.homestays.toList();
@@ -155,7 +168,21 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   Widget _buildChat(List<Homestay> homes, List<Room> rooms) {
-    final claudeReady = ref.watch(aiServiceProvider).apiKey.trim().isNotEmpty;
+    final configured = ref.watch(aiServiceProvider).isConfigured;
+    final statusLabel = !configured
+        ? 'Gợi ý offline'
+        : _apiAvailable == null
+        ? 'Gemini chưa thử'
+        : _apiAvailable!
+        ? 'Gemini đang hoạt động'
+        : _projectAccessError != null
+        ? 'Gemini bị từ chối'
+        : 'Gemini cần kiểm tra';
+    final statusColor = !configured
+        ? const Color(0xFF70428F)
+        : _apiAvailable == true
+        ? const Color(0xFF16834A)
+        : const Color(0xFF9A5A00);
     return SafeArea(
       child: Column(
         children: [
@@ -163,7 +190,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             width: double.infinity,
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE8E4DF))),
+              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
             ),
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Center(
@@ -204,32 +231,20 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: claudeReady
-                              ? const Color(0xFFE8F7EE)
-                              : const Color(0xFFF0EAF6),
+                          color: statusColor.withValues(alpha: .1),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.circle,
-                              size: 7,
-                              color: claudeReady
-                                  ? const Color(0xFF16834A)
-                                  : const Color(0xFF8050A6),
-                            ),
+                            Icon(Icons.circle, size: 7, color: statusColor),
                             const SizedBox(width: 6),
                             Text(
-                              claudeReady
-                                  ? 'Claude sẵn sàng'
-                                  : 'Hỗ trợ offline',
+                              statusLabel,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: claudeReady
-                                    ? const Color(0xFF16834A)
-                                    : const Color(0xFF70428F),
+                                color: statusColor,
                               ),
                             ),
                           ],
@@ -241,6 +256,38 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               ),
             ),
           ),
+          if (_projectAccessError != null)
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7E8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF1D39B)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, color: Color(0xFF9A5A00)),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          _projectAccessError!,
+                          style: const TextStyle(
+                            color: Color(0xFF704B12),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -311,10 +358,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           if (!isUser) ...[
                             const CircleAvatar(
                               radius: 16,
-                              backgroundColor: Color(0xFFF0EAF6),
+                              backgroundColor: Color(0xFFEEF2FF),
                               child: Icon(
                                 Icons.auto_awesome_rounded,
-                                color: Color(0xFF8050A6),
+                                color: brand,
                                 size: 17,
                               ),
                             ),
@@ -348,7 +395,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                     border: isUser
                                         ? null
                                         : Border.all(
-                                            color: const Color(0xFFE8E4DF),
+                                            color: const Color(0xFFE2E8F0),
                                           ),
                                   ),
                                   child: Text(
@@ -365,7 +412,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                       children: [
                                         for (final home in mentioned)
                                           TextButton.icon(
-                                            onPressed: () => context.go(
+                                            onPressed: () => context.push(
                                               '/homestays/${home.id}',
                                             ),
                                             icon: const Icon(
@@ -401,7 +448,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE8E4DF))),
+              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
             ),
             child: Center(
               child: ConstrainedBox(
@@ -418,7 +465,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         decoration: InputDecoration(
                           hintText: 'Hỏi về địa điểm, giá hoặc tiện nghi…',
                           filled: true,
-                          fillColor: const Color(0xFFF7F5F2),
+                          fillColor: const Color(0xFFF8FAFC),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
@@ -475,7 +522,7 @@ class _PromptChip extends StatelessWidget {
     label: Text(label),
     onPressed: onTap,
     backgroundColor: Colors.white,
-    side: const BorderSide(color: Color(0xFFE8E4DF)),
+    side: const BorderSide(color: Color(0xFFE2E8F0)),
     shape: const StadiumBorder(),
   );
 }
@@ -490,12 +537,8 @@ class _TypingBubble extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: Color(0xFFF0EAF6),
-          child: Icon(
-            Icons.auto_awesome_rounded,
-            color: Color(0xFF8050A6),
-            size: 17,
-          ),
+          backgroundColor: Color(0xFFEEF2FF),
+          child: Icon(Icons.auto_awesome_rounded, color: brand, size: 17),
         ),
         SizedBox(width: 8),
         Card(
@@ -506,8 +549,8 @@ class _TypingBubble extends StatelessWidget {
               width: 28,
               height: 15,
               child: LinearProgressIndicator(
-                color: Color(0xFF8050A6),
-                backgroundColor: Color(0xFFF0EAF6),
+                color: brand,
+                backgroundColor: Color(0xFFEEF2FF),
               ),
             ),
           ),

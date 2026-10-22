@@ -11,12 +11,19 @@ import 'package:nhom_huan_hieu/features/ai/data/ai_service.dart';
 import 'package:nhom_huan_hieu/features/ai/presentation/ai_provider.dart';
 import 'package:nhom_huan_hieu/features/booking/data/demo_booking_repository.dart';
 import 'package:nhom_huan_hieu/features/booking/domain/booking.dart';
+import 'package:nhom_huan_hieu/features/homestay/domain/catalog.dart';
 import 'package:nhom_huan_hieu/main.dart';
 
 http.Response aiResponse(String text) => http.Response(
   jsonEncode({
-    'content': [
-      {'type': 'text', 'text': text},
+    'candidates': [
+      {
+        'content': {
+          'parts': [
+            {'text': text},
+          ],
+        },
+      },
     ],
   }),
   200,
@@ -59,6 +66,13 @@ void main() {
           actorId: 'guest-demo',
           rating: 5 - i,
           comment: 'Đánh giá mẫu $i',
+        );
+        // Each synthetic review models a new stay after room turnover.
+        repo.saveRoom(
+          repo.rooms
+              .singleWhere((room) => room.id == 'pine-1')
+              .withHousekeeping(HousekeepingStatus.ready),
+          actorId: 'host-demo',
         );
       }
       final client = MockClient(
@@ -134,6 +148,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('landing-ai-cta')));
     await tester.pumpAndSettle();
     expect(find.text('Trợ lý chọn homestay'), findsOneWidget);
+    expect(find.text('Gemini chưa thử'), findsOneWidget);
 
     await tester.enterText(
       find.byType(TextField).last,
@@ -142,15 +157,70 @@ void main() {
     await tester.tap(find.byTooltip('Gửi tin nhắn'));
     await tester.pumpAndSettle();
     expect(find.text('Nhà Bên Đồi ở Đà Lạt phù hợp với bạn.'), findsOneWidget);
+    expect(find.text('Gemini đang hoạt động'), findsOneWidget);
     expect(find.text('Xem chi tiết'), findsOneWidget);
 
     final body = jsonDecode(requests.single.body) as Map<String, dynamic>;
-    expect(body['system'], contains('Nhà Bên Đồi | Đà Lạt'));
-    expect(body['system'], contains('650.000'));
-    expect((body['messages'] as List).length, lessThanOrEqualTo(10));
+    final context = (body['systemInstruction'] as Map)['parts'].toString();
+    expect(context, contains('Nhà Bên Đồi | Đà Lạt'));
+    expect(context, contains('650.000'));
+    expect((body['contents'] as List).length, lessThanOrEqualTo(10));
     await tester.tap(find.text('Xem chi tiết'));
     await tester.pumpAndSettle();
     expect(find.text('Nhà Bên Đồi'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    client.close();
+  });
+
+  testWidgets('403 project denial keeps local homestay suggestions available', (
+    tester,
+  ) async {
+    final client = MockClient(
+      (_) async => http.Response(
+        jsonEncode({
+          'error': {
+            'code': 403,
+            'status': 'PERMISSION_DENIED',
+            'message': 'Your project has been denied access.',
+          },
+        }),
+        403,
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        aiServiceProvider.overrideWithValue(
+          AiService(apiKey: 'test-key', client: client),
+        ),
+        repositoryProvider.overrideWithValue(DemoBookingRepository()),
+      ],
+    );
+    container.read(roleProvider.notifier).state = DemoRole.guest;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('landing-ai-cta')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('landing-ai-cta')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Gợi ý homestay');
+    await tester.tap(find.byTooltip('Gửi tin nhắn'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gemini bị từ chối'), findsOneWidget);
+    expect(
+      find.textContaining('Gemini bị Google từ chối quyền project'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Mình gợi ý một vài chỗ'), findsOneWidget);
+    expect(find.text('Gemini đang hoạt động'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     container.dispose();

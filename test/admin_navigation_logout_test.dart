@@ -29,9 +29,24 @@ void main() {
     expect(find.text('Tổng quan'), findsWidgets);
     expect(find.text('Đơn đặt phòng'), findsOneWidget);
     expect(find.text('Lịch phòng'), findsOneWidget);
+    expect(find.text('Tài chính'), findsOneWidget);
+    expect(find.text('Buồng phòng'), findsOneWidget);
+    expect(find.text('Khách hàng'), findsOneWidget);
+    expect(find.text('Nhân sự & ca làm'), findsOneWidget);
     expect(find.text('Hồ sơ'), findsOneWidget);
     expect(find.text('Khám phá'), findsNothing);
     expect(find.text('Trang khách'), findsNothing);
+
+    container.read(routerProvider).go('/host/finance');
+    await tester.pumpAndSettle();
+    expect(find.text('Doanh thu lưu trú'), findsOneWidget);
+    expect(find.text('Chi phí vận hành'), findsWidgets);
+    expect(find.textContaining('RevPAR'), findsOneWidget);
+
+    container.read(routerProvider).go('/host/staff');
+    await tester.pumpAndSettle();
+    expect(find.text('Hồ sơ nhân viên'), findsOneWidget);
+    expect(find.text('Lịch ca trong tháng'), findsOneWidget);
 
     container.read(routerProvider).go('/profile');
     await tester.pumpAndSettle();

@@ -15,15 +15,16 @@ class DemoBookingRepository implements BookingRepository {
           homestayId: 'pine',
           hostId: 'host-demo',
           guestId: 'other-guest',
-          guestName: 'Khách mẫu',
+          guestName: 'Dữ liệu demo · Khách mẫu',
           roomName: 'Phòng thông xanh',
-          checkIn: today.add(const Duration(days: 2)),
+          checkIn: today.subtract(const Duration(days: 1)),
           checkOut: today.add(const Duration(days: 4)),
           guests: 2,
           pricePerNight: 650000,
           createdAt: now,
           expiresAt: now,
-          status: BookingStatus.confirmed,
+          status: BookingStatus.checkedIn,
+          note: 'Dữ liệu demo để kiểm tra luồng đang lưu trú.',
         ),
       );
       _sequence = 1;
@@ -339,6 +340,25 @@ class DemoBookingRepository implements BookingRepository {
     'bookings': bookings.map((b) => b.toJson()).toList(),
     'reviews': reviews.map((r) => r.toJson()).toList(),
   };
+
+  /// Replace local demo data when another browser tab writes the same store.
+  void restoreFromJson(Map<String, dynamic> data) {
+    final restored = DemoBookingRepository.fromJson(data, clock: _clock);
+    _homestays
+      ..clear()
+      ..addAll(restored._homestays);
+    _rooms
+      ..clear()
+      ..addAll(restored._rooms);
+    _bookings
+      ..clear()
+      ..addAll(restored._bookings);
+    _reviews
+      ..clear()
+      ..addAll(restored._reviews);
+    _sequence = restored._sequence;
+  }
+
   factory DemoBookingRepository.fromJson(
     Map<String, dynamic> j, {
     DateTime Function()? clock,
@@ -503,9 +523,87 @@ class DemoBookingRepository implements BookingRepository {
         status: BookingStatus.checkedOut,
         note: 'Đơn demo lịch sử để kiểm tra biểu đồ doanh thu tháng 9.',
       ),
+      Booking(
+        id: 'HHL-DEMO-2026-10',
+        roomId: 'garden-1',
+        homestayId: 'garden',
+        hostId: 'host-demo',
+        guestId: 'demo-analytics',
+        guestName: 'Dữ liệu demo tháng 10',
+        roomName: 'Phòng nhìn ra vườn',
+        checkIn: DateTime.utc(2026, 10, 27),
+        checkOut: DateTime.utc(2026, 10, 29),
+        guests: 2,
+        pricePerNight: 750000,
+        createdAt: DateTime.utc(2026, 10, 20),
+        expiresAt: DateTime.utc(2026, 10, 22),
+        status: BookingStatus.pending,
+        note: 'Đơn demo chờ duyệt tháng 10; không phải yêu cầu khách thật.',
+      ),
     ];
-    _bookings.addAll(samples.where((booking) => !existingIds.contains(booking.id)));
+    for (var i = 0; i < _bookings.length; i++) {
+      final booking = _bookings[i];
+      if (booking.guestId == 'demo-analytics' &&
+          booking.status == BookingStatus.checkedOut &&
+          booking.payments.isEmpty) {
+        _bookings[i] = booking.withPayment(
+          PaymentRecord(
+            id: 'PAY-DEMO-${booking.id}',
+            amount: booking.total,
+            method: 'Dữ liệu demo',
+            paidAt: booking.checkOut,
+            note:
+                'Giao dịch mẫu để kiểm tra báo cáo, không phải tiền thực thu.',
+          ),
+        );
+      }
+    }
+    _bookings.addAll(
+      samples.where((booking) => !existingIds.contains(booking.id)).map((
+        booking,
+      ) {
+        if (booking.guestId != 'demo-analytics' ||
+            booking.status != BookingStatus.checkedOut)
+          return booking;
+        return booking.withPayment(
+          PaymentRecord(
+            id: 'PAY-DEMO-${booking.id}',
+            amount: booking.total,
+            method: 'Dữ liệu demo',
+            paidAt: booking.checkOut,
+            note:
+                'Giao dịch mẫu để kiểm tra báo cáo, không phải tiền thực thu.',
+          ),
+        );
+      }),
+    );
+    final sampleStayIndex = _bookings.indexWhere((b) => b.id == 'HHL-0001');
+    if (sampleStayIndex >= 0 &&
+        (_bookings[sampleStayIndex].guestName == 'Khách mẫu' ||
+            _bookings[sampleStayIndex].guestName ==
+                'Dữ liệu demo · Khách mẫu')) {
+      final sample = _bookings[sampleStayIndex];
+      final today = vietnamToday(now);
+      _bookings[sampleStayIndex] = Booking(
+        id: sample.id,
+        roomId: sample.roomId,
+        homestayId: sample.homestayId,
+        hostId: sample.hostId,
+        guestId: sample.guestId,
+        guestName: 'Dữ liệu demo · Khách mẫu',
+        roomName: sample.roomName,
+        checkIn: today.subtract(const Duration(days: 1)),
+        checkOut: today.add(const Duration(days: 4)),
+        guests: sample.guests,
+        pricePerNight: sample.pricePerNight,
+        createdAt: sample.createdAt,
+        expiresAt: sample.expiresAt,
+        status: BookingStatus.checkedIn,
+        note: 'Dữ liệu demo để kiểm tra luồng đang lưu trú.',
+      );
+    }
   }
+
   void _owner(String homeId, String actorId) {
     if (!_homestays.any((h) => h.id == homeId && h.hostId == actorId)) {
       throw const BookingException('Bạn không có quyền quản lý homestay này.');
@@ -591,6 +689,7 @@ class DemoBookingRepository implements BookingRepository {
   @override
   bool available(Room room, DateTime checkIn, DateTime checkOut) =>
       room.active &&
+      room.housekeepingStatus == HousekeepingStatus.ready &&
       !_bookings.any(
         (b) =>
             b.roomId == room.id &&
@@ -611,6 +710,9 @@ class DemoBookingRepository implements BookingRepository {
     required DateTime checkIn,
     required DateTime checkOut,
     required int guests,
+    int memberDiscountPercent = 0,
+    int couponDiscountPercent = 0,
+    String couponCode = '',
     String note = '',
   }) {
     final candidates = rooms.where((r) => r.id == roomId);
@@ -633,12 +735,17 @@ class DemoBookingRepository implements BookingRepository {
       throw const BookingException('Thời gian ở phải từ 1 đến 30 đêm.');
     if (guests < 1 || guests > room.capacity)
       throw const BookingException('Số khách vượt sức chứa hoặc không hợp lệ.');
+    if (memberDiscountPercent < 0 ||
+        couponDiscountPercent < 0 ||
+        memberDiscountPercent + couponDiscountPercent > 100) {
+      throw const BookingException('Mức ưu đãi thành viên không hợp lệ.');
+    }
     if (!available(room, start, end))
       throw const BookingException(
         'Phòng đang bảo trì hoặc đã có đơn trong thời gian này.',
       );
     final home = homestays.singleWhere((h) => h.id == room.homestayId);
-    // Synchronous in one isolate only. Firebase needs server-side transactions.
+    // Synchronous in one isolate; this repository is for the local demo.
     final booking = Booking(
       id: 'HHL-${(++_sequence).toString().padLeft(4, '0')}',
       roomId: room.id,
@@ -651,6 +758,9 @@ class DemoBookingRepository implements BookingRepository {
       checkOut: end,
       guests: guests,
       pricePerNight: room.price,
+      memberDiscountPercent: memberDiscountPercent,
+      couponDiscountPercent: couponDiscountPercent,
+      couponCode: couponCode.trim().toUpperCase(),
       createdAt: now,
       expiresAt: now.add(const Duration(hours: 24)),
       note: note.trim(),
@@ -671,6 +781,12 @@ class DemoBookingRepository implements BookingRepository {
         (isGuest &&
             status == BookingStatus.pending &&
             target == BookingStatus.cancelled) ||
+        (isGuest &&
+            status == BookingStatus.confirmed &&
+            target == BookingStatus.cancelled &&
+            now.isBefore(
+              booking.checkIn.subtract(const Duration(hours: 24)),
+            )) ||
         (isHost &&
             ((status == BookingStatus.pending &&
                     {
@@ -695,7 +811,61 @@ class DemoBookingRepository implements BookingRepository {
             !today.isBefore(booking.checkOut))) {
       throw const BookingException('Chỉ nhận phòng trong khoảng ngày lưu trú.');
     }
+    if (target == BookingStatus.checkedIn) {
+      final room = _rooms
+          .where((item) => item.id == booking.roomId)
+          .firstOrNull;
+      if (room == null || room.housekeepingStatus != HousekeepingStatus.ready) {
+        throw const BookingException('Phòng chưa sẵn sàng sau khi dọn.');
+      }
+    }
     _bookings[index] = booking.withStatus(target);
+    if (target == BookingStatus.checkedOut) {
+      final roomIndex = _rooms.indexWhere((item) => item.id == booking.roomId);
+      if (roomIndex >= 0 && _rooms[roomIndex].active) {
+        _rooms[roomIndex] = _rooms[roomIndex].withHousekeeping(
+          HousekeepingStatus.needsCleaning,
+        );
+      }
+    }
+  }
+
+  @override
+  void recordPayment(
+    String bookingId, {
+    required String actorId,
+    required int amount,
+    required String method,
+    String note = '',
+  }) {
+    final index = _bookings.indexWhere((booking) => booking.id == bookingId);
+    if (index < 0) throw const BookingException('Không tìm thấy đơn.');
+    final booking = _bookings[index];
+    _owner(booking.homestayId, actorId);
+    if (booking.status == BookingStatus.cancelled ||
+        booking.status == BookingStatus.rejected ||
+        booking.status == BookingStatus.expired) {
+      throw const BookingException('Đơn đã đóng, không thể ghi thanh toán.');
+    }
+    if (amount <= 0 || amount > booking.outstandingAmount) {
+      throw const BookingException(
+        'Số tiền phải lớn hơn 0 và không vượt số tiền còn phải thu.',
+      );
+    }
+    if (method.trim().isEmpty || note.trim().length > 200) {
+      throw const BookingException(
+        'Kiểm tra phương thức và ghi chú thanh toán.',
+      );
+    }
+    _bookings[index] = booking.withPayment(
+      PaymentRecord(
+        id: 'PAY-${DateTime.now().microsecondsSinceEpoch}',
+        amount: amount,
+        method: method.trim(),
+        paidAt: now,
+        note: note.trim(),
+      ),
+    );
   }
 
   @override

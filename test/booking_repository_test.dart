@@ -1,8 +1,62 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nhom_huan_hieu/core/state/app_state.dart';
 import 'package:nhom_huan_hieu/features/booking/data/demo_booking_repository.dart';
 import 'package:nhom_huan_hieu/features/booking/domain/booking.dart';
+import 'package:nhom_huan_hieu/features/homestay/domain/catalog.dart';
 
 void main() {
+  test('member discount is applied to the saved booking total', () {
+    final booking = Booking(
+      id: 'HHL-discount-test',
+      roomId: 'room-1',
+      homestayId: 'home-1',
+      hostId: 'host-1',
+      guestId: 'guest-1',
+      guestName: 'Khách thành viên',
+      roomName: 'Phòng vườn',
+      checkIn: DateTime.utc(2026, 10, 22),
+      checkOut: DateTime.utc(2026, 10, 24),
+      guests: 2,
+      pricePerNight: 590000,
+      memberDiscountPercent: 5,
+      createdAt: DateTime.utc(2026, 10, 21),
+      expiresAt: DateTime.utc(2026, 10, 22),
+    );
+
+    expect(booking.subtotal, 1180000);
+    expect(booking.discountAmount, 59000);
+    expect(booking.total, 1121000);
+    expect(Booking.fromJson(booking.toJson()).total, 1121000);
+  });
+
+  test('member and coupon discounts persist on a new booking', () {
+    final repo = DemoBookingRepository(
+      clock: () => DateTime.utc(2026, 9, 25, 3),
+      seed: false,
+    );
+    final booking = repo.create(
+      roomId: 'pine-1',
+      guestId: 'member-1',
+      guestName: 'Khách thành viên',
+      checkIn: DateTime.utc(2026, 9, 27),
+      checkOut: DateTime.utc(2026, 9, 29),
+      guests: 2,
+      memberDiscountPercent: 5,
+      couponDiscountPercent: 10,
+      couponCode: 'hhl10',
+    );
+
+    expect(booking.subtotal, 1300000);
+    expect(booking.discountPercent, 15);
+    expect(booking.discountAmount, 195000);
+    expect(booking.total, 1105000);
+    expect(booking.couponCode, 'HHL10');
+    final restored = Booking.fromJson(booking.toJson());
+    expect(restored.total, 1105000);
+    expect(restored.couponDiscountPercent, 10);
+    expect(restored.couponCode, 'HHL10');
+  });
+
   late DateTime clock;
   late DemoBookingRepository repo;
   setUp(() {
@@ -63,6 +117,16 @@ void main() {
       expect(repo.bookings, isEmpty);
     },
   );
+  test('A room under maintenance cannot receive a new booking', () {
+    final room = repo.rooms.singleWhere((item) => item.id == 'pine-1');
+    repo.saveRoom(
+      room.withHousekeeping(HousekeepingStatus.maintenance),
+      actorId: 'host-demo',
+    );
+
+    expect(() => book(), throwsA(isA<BookingException>()));
+    expect(repo.bookings, isEmpty);
+  });
   test(
     'Pending blocks overlapping bookings, adjacent and other rooms are allowed',
     () {
@@ -132,6 +196,63 @@ void main() {
     repo.transition(b.id, BookingStatus.cancelled, actorId: 'guest-demo');
     expect(book().status, BookingStatus.pending);
   });
+  test('Guest can cancel a confirmed stay until 24 hours before arrival', () {
+    final b = book(
+      start: DateTime.utc(2026, 9, 27),
+      end: DateTime.utc(2026, 9, 29),
+    );
+    repo.transition(b.id, BookingStatus.confirmed, actorId: 'host-demo');
+    repo.transition(b.id, BookingStatus.cancelled, actorId: 'guest-demo');
+    expect(repo.bookings.single.status, BookingStatus.cancelled);
+    expect(
+      repo.available(
+        repo.rooms.singleWhere((room) => room.id == b.roomId),
+        b.checkIn,
+        b.checkOut,
+      ),
+      isTrue,
+    );
+  });
+  test('A registered guest can cancel their own booking by account id', () {
+    final b = repo.create(
+      roomId: 'pine-1',
+      guestId: 'member-uid-42',
+      guestName: 'Khách thành viên',
+      checkIn: DateTime.utc(2026, 9, 27),
+      checkOut: DateTime.utc(2026, 9, 29),
+      guests: 2,
+    );
+    final controller = BookingController(repo);
+
+    controller.transition(
+      b.id,
+      BookingStatus.cancelled,
+      DemoRole.guest,
+      actorId: 'member-uid-42',
+    );
+
+    expect(repo.bookings.single.status, BookingStatus.cancelled);
+    controller.dispose();
+  });
+  test(
+    'Confirmed stay cannot be cancelled inside the final 24-hour window',
+    () {
+      final b = book(
+        start: DateTime.utc(2026, 9, 27),
+        end: DateTime.utc(2026, 9, 29),
+      );
+      repo.transition(b.id, BookingStatus.confirmed, actorId: 'host-demo');
+      clock = DateTime.utc(2026, 9, 26);
+      expect(
+        () => repo.transition(
+          b.id,
+          BookingStatus.cancelled,
+          actorId: 'guest-demo',
+        ),
+        throwsA(isA<BookingException>()),
+      );
+    },
+  );
   test('Host approval, check-in and checkout obey ownership and lifecycle', () {
     final b = book();
     expect(

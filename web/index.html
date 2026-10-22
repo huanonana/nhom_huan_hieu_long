@@ -14,6 +14,73 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Remove a previously installed Flutter worker so a returning guest gets
+    // the current deployment instead of an old cached bundle.
+    async function startHhlStay() {
+      const cleanupKey = 'hhl-stay-cache-cleaned-v2';
+      if ('serviceWorker' in navigator && !sessionStorage.getItem(cleanupKey)) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        const oldFlutterWorkers = registrations.filter((registration) =>
+          registration.active?.scriptURL.includes('flutter_service_worker.js') ||
+          registration.waiting?.scriptURL.includes('flutter_service_worker.js') ||
+          registration.installing?.scriptURL.includes('flutter_service_worker.js'));
+        if (oldFlutterWorkers.length) {
+          sessionStorage.setItem(cleanupKey, '1');
+          await Promise.all(oldFlutterWorkers.map((registration) => registration.unregister()));
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames
+            .filter((name) => name.startsWith('flutter-'))
+            .map((name) => caches.delete(name)));
+          location.reload();
+          return;
+        }
+      }
+
+      const bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js';
+      bootstrap.async = true;
+      document.body.appendChild(bootstrap);
+      watchForDeploymentUpdates();
+    }
+
+    async function watchForDeploymentUpdates() {
+      const bundleUrl = new URL('main.dart.js', document.baseURI);
+      const getBundleVersion = async () => {
+        bundleUrl.searchParams.set('_hhl_check', Date.now().toString());
+        const response = await fetch(bundleUrl, {
+          method: 'HEAD',
+          cache: 'no-store',
+        });
+        if (!response.ok) return null;
+        return [
+          response.headers.get('etag'),
+          response.headers.get('last-modified'),
+          response.headers.get('content-length'),
+        ].join('|');
+      };
+
+      let loadedVersion;
+      try {
+        loadedVersion = await getBundleVersion();
+      } catch (_) {
+        return;
+      }
+      if (!loadedVersion) return;
+
+      window.setInterval(async () => {
+        try {
+          const currentVersion = await getBundleVersion();
+          if (currentVersion && currentVersion !== loadedVersion) {
+            location.reload();
+          }
+        } catch (_) {
+          // Keep the current app usable when offline or temporarily disconnected.
+        }
+      }, 60_000);
+    }
+
+    startHhlStay();
+  </script>
 </body>
 </html>

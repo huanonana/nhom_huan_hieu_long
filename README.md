@@ -84,48 +84,32 @@ Mở http://localhost:8080.
 
 ## Chạy với tính năng AI
 
-Các tính năng tóm tắt đánh giá, viết mô tả homestay và chatbot cần Anthropic API
-key. Chạy app và truyền key qua `--dart-define`:
+Các tính năng tóm tắt đánh giá, viết mô tả homestay và chatbot dùng Gemini API
+với model `gemini-3.5-flash-lite`. Model này hiện có Free Tier; hạn mức miễn
+phí có thể thay đổi và áp dụng giới hạn sử dụng. Tạo key mới trong
+[Google AI Studio](https://aistudio.google.com/app/apikey), không cần nạp credit
+cho Free Tier, rồi chạy app với:
 
 ```bash
-flutter run --dart-define=ANTHROPIC_API_KEY=xxx
+flutter run --dart-define=GEMINI_API_KEY=xxx
 ```
 
 Thay `xxx` bằng API key của bạn. Không commit hoặc chia sẻ key trong mã nguồn.
+Không dán key vào chat, ảnh chụp màn hình hoặc lệnh có thể được lưu trong
+terminal history. Nếu key bị lộ hoặc Google báo key bị chặn, hãy thu hồi key đó
+và tạo key mới trong AI Studio. Flutter Web đóng gói key vào JavaScript trình
+duyệt, nên cấu hình này chỉ dành cho demo cục bộ; bản phát hành thật cần gọi AI
+qua backend để giữ key ở máy chủ.
 Nếu không truyền key, app vẫn chạy đầy đủ các chức năng khác; các tính năng AI
+sẽ chatbot tư vấn bằng dữ liệu có sẵn ở chế độ offline; các tác vụ AI tạo sinh
 sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
 
-## Cấu hình Firebase
+## Dữ liệu và tài khoản trong bản demo
 
-Project Firebase hiện dùng là `hhl-stay-home-2026-23010895` (HHL Homestay).
-Firebase đã được khởi tạo trong app; Android và Web đã đăng ký, Authentication
-Email/Password đã bật, và Firestore mặc định được đặt tại Singapore
-(`asia-southeast1`). Rules nằm trong `firestore.rules`; dữ liệu danh mục được đọc
-công khai, còn thao tác ghi yêu cầu đăng nhập và kiểm tra vai trò.
-
-Để tạo lại cấu hình trên máy khác, đăng nhập tài khoản có quyền với project rồi
-chạy:
-
-```bash
-flutterfire configure --project=hhl-stay-home-2026-23010895 --platforms=android,web
-```
-
-`lib/firebase_options.dart` và `android/app/google-services.json` được sinh bởi
-FlutterFire CLI. Đăng ký bằng email, chọn vai trò Khách hoặc Chủ nhà; hồ sơ,
-homestay, phòng, yêu thích, đơn đặt, lịch giữ phòng và đánh giá được đọc/ghi
-qua Firebase Auth và Cloud Firestore. Quy tắc Firestore nằm trong
-`firestore.rules`; cập nhật bằng `firebase deploy --only firestore:rules
---project hhl-stay-home-2026-23010895`.
-
-Khách có thể mở trang Khám phá, xem chi tiết homestay và hỏi chatbot mà chưa
-cần đăng nhập. App yêu cầu đăng nhập khi khách bắt đầu đặt phòng để lưu thông
-tin đơn; sau khi đăng nhập/đăng ký, app quay lại đúng luồng đặt phòng. Các
-trang quản lý và dữ liệu đơn cá nhân vẫn yêu cầu tài khoản phù hợp.
-
-Cloud Storage chưa bật: Firebase đang yêu cầu liên kết billing account và
-nâng project lên gói Blaze trước khi tạo bucket. Ảnh homestay hiện dùng asset
-cục bộ nên app vẫn hoạt động khi chưa bật Storage; chức năng tải ảnh lên chưa
-khả dụng. Không commit khóa bí mật hoặc credential cá nhân.
+Ứng dụng không kết nối Firebase. Danh mục, đơn đặt và yêu thích mẫu được lưu
+cục bộ trên thiết bị bằng SharedPreferences; chúng không đồng bộ giữa thiết bị.
+Đăng ký/đăng nhập chỉ mô phỏng trong phiên chạy hiện tại. Có thể chuyển giữa
+vai trò Khách và Quản trị viên từ trang Hồ sơ để thử các luồng.
 
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.

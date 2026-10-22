@@ -5,6 +5,12 @@ import 'package:nhom_huan_hieu/core/state/demo_storage.dart';
 import 'package:nhom_huan_hieu/features/booking/data/demo_booking_repository.dart';
 import 'package:nhom_huan_hieu/features/booking/domain/booking.dart';
 import 'package:nhom_huan_hieu/features/homestay/domain/catalog.dart';
+import 'package:nhom_huan_hieu/features/auth/data/demo_auth_repository.dart';
+import 'package:nhom_huan_hieu/features/auth/domain/app_user.dart';
+import 'package:nhom_huan_hieu/features/auth/presentation/auth_provider.dart';
+import 'package:nhom_huan_hieu/features/dashboard/domain/finance_entry.dart';
+import 'package:nhom_huan_hieu/features/dashboard/domain/staff_shift.dart';
+import 'package:nhom_huan_hieu/features/dashboard/domain/staff_member.dart';
 
 void main() {
   final today = DateTime.utc(2026, 9, 26);
@@ -58,6 +64,60 @@ void main() {
     repo.deleteRoom('pine-1', actorId: 'host-demo');
     expect(repo.bookings.single.id, booking.id);
   });
+  test('Payment ledger validates amounts and persists room checkout state', () {
+    final repo = DemoBookingRepository(seed: false, clock: () => today);
+    final booking = repo.create(
+      roomId: 'pine-1',
+      guestId: 'guest-demo',
+      guestName: 'Khách',
+      checkIn: today,
+      checkOut: today.add(const Duration(days: 2)),
+      guests: 2,
+    );
+    repo.recordPayment(
+      booking.id,
+      actorId: 'host-demo',
+      amount: 300000,
+      method: 'Tiền mặt',
+    );
+    expect(repo.bookings.single.paidAmount, 300000);
+    expect(repo.bookings.single.outstandingAmount, booking.total - 300000);
+    expect(
+      () => repo.recordPayment(
+        booking.id,
+        actorId: 'host-demo',
+        amount: booking.total,
+        method: 'Tiền mặt',
+      ),
+      throwsA(isA<BookingException>()),
+    );
+    final restored = DemoBookingRepository.fromJson(
+      jsonDecode(jsonEncode(repo.toJson())),
+      clock: () => today,
+    );
+    expect(restored.bookings.single.payments.single.method, 'Tiền mặt');
+
+    repo.transition(booking.id, BookingStatus.confirmed, actorId: 'host-demo');
+    repo.transition(booking.id, BookingStatus.checkedIn, actorId: 'host-demo');
+    repo.transition(booking.id, BookingStatus.checkedOut, actorId: 'host-demo');
+    expect(
+      repo.rooms.first.housekeepingStatus,
+      HousekeepingStatus.needsCleaning,
+    );
+    final room = repo.rooms.first;
+    repo.saveRoom(
+      room.withHousekeeping(HousekeepingStatus.maintenance),
+      actorId: 'host-demo',
+    );
+    final maintenanceSnapshot = DemoBookingRepository.fromJson(
+      jsonDecode(jsonEncode(repo.toJson())),
+      clock: () => today,
+    );
+    expect(
+      maintenanceSnapshot.rooms.first.housekeepingStatus,
+      HousekeepingStatus.maintenance,
+    );
+  });
   test(
     'Cannot remove a homestay with rooms; empty custom home can be removed',
     () {
@@ -81,6 +141,21 @@ void main() {
       expect(repo.homestays.any((h) => h.id == home.id), isFalse);
     },
   );
+  test('Homestay photo data survives model serialization', () {
+    final home = Homestay(
+      id: 'with-photos',
+      hostId: 'host-demo',
+      name: 'Nhà có ảnh',
+      city: 'Cần Thơ',
+      address: 'Địa chỉ demo',
+      description: 'Mô tả',
+      amenities: const ['Wi-Fi'],
+      color: 0xFF2F6757,
+      imageUrls: const ['data:image/jpeg;base64,/9j/2Q=='],
+    );
+    final restored = Homestay.fromJson(home.toJson());
+    expect(restored.imageUrls, home.imageUrls);
+  });
   test(
     'Snapshot restores dates, sequence, edited rooms and booking status',
     () {
@@ -123,15 +198,155 @@ void main() {
     );
     final first = await storage.load();
     first.read(favoritesProvider.notifier).state = {'pine'};
+    first.read(recentHomestaysProvider.notifier).state = ['pine', 'cantho'];
+    first.read(financeEntriesProvider.notifier).state = [
+      FinanceEntry(
+        id: 'cost-1',
+        title: 'Vệ sinh phòng',
+        category: 'Vệ sinh',
+        amount: 120000,
+        date: today,
+      ),
+    ];
+    first.read(staffShiftsProvider.notifier).state = [
+      StaffShift(
+        id: 'shift-1',
+        staffId: 'staff-1',
+        staffName: 'Nhân viên demo',
+        role: 'Lễ tân',
+        date: today,
+        startHour: 8,
+        endHour: 16,
+        hourlyRate: 30000,
+      ),
+    ];
+    first.read(staffMembersProvider.notifier).state = [
+      const StaffMember(
+        id: 'staff-1',
+        name: 'Nhân viên demo',
+        role: 'Lễ tân',
+        phone: '0900000000',
+        hourlyRate: 30000,
+      ),
+    ];
     first.read(changesProvider.notifier).saveRoom(room());
     await storage.settled;
     first.dispose();
     final second = await storage.load();
     expect(second.read(favoritesProvider), {'pine'});
+    expect(second.read(recentHomestaysProvider), ['pine', 'cantho']);
+    expect(second.read(financeEntriesProvider).single.amount, 120000);
+    expect(second.read(staffShiftsProvider).single.estimatedPay, 240000);
+    expect(second.read(staffShiftsProvider).single.staffId, 'staff-1');
+    expect(second.read(staffMembersProvider).single.phone, '0900000000');
     expect(second.read(repositoryProvider).rooms.first.name, 'Tên mới');
     await storage.settled;
     second.dispose();
   });
+  testWidgets('Storage syncs staff profiles and linked shifts across tabs', (
+    tester,
+  ) async {
+    String? disk;
+    final storage = DemoStorage(
+      read: () async => disk,
+      write: (value) async => disk = value,
+      syncInterval: const Duration(milliseconds: 10),
+    );
+    final firstTab = await storage.load();
+    await storage.settled;
+    final secondTab = await storage.load();
+    await storage.settled;
+
+    const member = StaffMember(
+      id: 'shared-staff',
+      name: 'Nhân viên dùng chung',
+      role: 'Lễ tân',
+      phone: '',
+      hourlyRate: 30000,
+    );
+    firstTab.read(staffMembersProvider.notifier).state = [member];
+    firstTab.read(staffShiftsProvider.notifier).state = [
+      StaffShift(
+        id: 'shared-shift',
+        staffId: member.id,
+        staffName: member.name,
+        role: member.role,
+        date: today,
+        startHour: 8,
+        endHour: 16,
+        hourlyRate: member.hourlyRate,
+      ),
+    ];
+    await storage.settled;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump();
+
+    expect(secondTab.read(staffMembersProvider).single.id, member.id);
+    expect(secondTab.read(staffShiftsProvider).single.staffId, member.id);
+    firstTab.dispose();
+    secondTab.dispose();
+    storage.dispose();
+  });
+  test(
+    'Host account and session survive reload with admin booking access',
+    () async {
+      String? disk;
+      String? authDisk;
+      final auth = DemoAuthRepository.instance;
+      await auth.signOut();
+      final storage = DemoStorage(
+        read: () async => disk,
+        write: (value) async => disk = value,
+        readAuth: () async => authDisk,
+        writeAuth: (value) async => authDisk = value,
+      );
+      final first = await storage.load();
+      final user = await first
+          .read(authRepositoryProvider)
+          .signUp(
+            email:
+                'manager-${DateTime.now().microsecondsSinceEpoch}@example.test',
+            password: 'test-password-123',
+            role: AppUserRole.host,
+            displayName: 'Quản trị demo',
+          );
+      first
+          .read(changesProvider.notifier)
+          .book(
+            roomId: 'cantho-1',
+            name: 'Khách đặt thật',
+            guestId: 'guest-test-1',
+            start: DateTime.utc(2026, 10, 27),
+            end: DateTime.utc(2026, 10, 28),
+            guests: 2,
+            note: '',
+          );
+      await storage.settled;
+      first.dispose();
+
+      final second = await storage.load();
+      final restoredUser = await second.read(currentUserProvider.future);
+      expect(restoredUser?.uid, user.uid);
+      expect(restoredUser?.email, user.email);
+      expect(restoredUser?.displayName, user.displayName);
+      expect(restoredUser?.role, user.role);
+      expect(second.read(roleProvider), DemoRole.host);
+      final visibleBookings = second
+          .read(repositoryProvider)
+          .bookings
+          .where((booking) => booking.hostId == 'host-demo');
+      expect(
+        visibleBookings.any((booking) => booking.guestName == 'Khách đặt thật'),
+        isTrue,
+      );
+      expect(authDisk, isNotNull);
+      expect(authDisk, isNot(contains('test-password-123')));
+      await second.read(authRepositoryProvider).signOut();
+      await storage.settled;
+      second.dispose();
+    },
+  );
+
   test('Local demo adds monthly revenue samples only once', () async {
     String? disk;
     final storage = DemoStorage(
@@ -146,7 +361,7 @@ void main() {
     final demoBookings = firstBookings
         .where((booking) => booking.id.startsWith('HHL-DEMO-'))
         .toList();
-    expect(demoBookings, hasLength(6));
+    expect(demoBookings, hasLength(7));
     final expectedMonthlyTotals = <int, int>{
       4: 1300000,
       5: 1500000,
@@ -163,6 +378,16 @@ void main() {
       expect(booking.total, entry.value);
       expect(booking.status, BookingStatus.checkedOut);
     }
+    final october = demoBookings.singleWhere(
+      (booking) => booking.id.endsWith('-10'),
+    );
+    expect(october.total, 1500000);
+    expect(october.status, BookingStatus.pending);
+    final activeStay = firstBookings.singleWhere(
+      (booking) => booking.id == 'HHL-0001',
+    );
+    expect(activeStay.status, BookingStatus.checkedIn);
+    expect(activeStay.guestName, startsWith('Dữ liệu demo'));
     first.dispose();
 
     final second = await storage.load();
@@ -172,7 +397,7 @@ void main() {
           .read(repositoryProvider)
           .bookings
           .where((booking) => booking.id.startsWith('HHL-DEMO-')),
-      hasLength(6),
+      hasLength(7),
     );
     second.dispose();
   });

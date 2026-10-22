@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum BookingStatus {
   pending,
   confirmed,
@@ -30,6 +28,37 @@ DateTime vietnamToday(DateTime now) =>
 bool overlaps(DateTime aIn, DateTime aOut, DateTime bIn, DateTime bOut) =>
     aIn.isBefore(bOut) && aOut.isAfter(bIn);
 
+class PaymentRecord {
+  const PaymentRecord({
+    required this.id,
+    required this.amount,
+    required this.method,
+    required this.paidAt,
+    this.note = '',
+  });
+  final String id;
+  final int amount;
+  final String method;
+  final DateTime paidAt;
+  final String note;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'amount': amount,
+    'method': method,
+    'paidAt': paidAt.toIso8601String(),
+    'note': note,
+  };
+
+  factory PaymentRecord.fromJson(Map<String, dynamic> json) => PaymentRecord(
+    id: json['id'] as String,
+    amount: json['amount'] as int,
+    method: json['method'] as String,
+    paidAt: DateTime.parse(json['paidAt'] as String),
+    note: json['note'] as String? ?? '',
+  );
+}
+
 class BookingException implements Exception {
   const BookingException(this.message);
   final String message;
@@ -38,46 +67,6 @@ class BookingException implements Exception {
 }
 
 class Booking {
-  Map<String, dynamic> toFirestore() => {
-    'id': id,
-    'roomId': roomId,
-    'homestayId': homestayId,
-    'hostId': hostId,
-    'guestId': guestId,
-    'guestName': guestName,
-    'roomName': roomName,
-    'checkIn': Timestamp.fromDate(checkIn),
-    'checkOut': Timestamp.fromDate(checkOut),
-    'guests': guests,
-    'pricePerNight': pricePerNight,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'expiresAt': Timestamp.fromDate(expiresAt),
-    'status': status.name,
-    'note': note,
-  };
-
-  factory Booking.fromFirestore(Map<String, dynamic> data, {String? id}) =>
-      Booking(
-        id: data['id'] as String? ?? id ?? '',
-        roomId: data['roomId'] as String? ?? '',
-        homestayId: data['homestayId'] as String? ?? '',
-        hostId: data['hostId'] as String? ?? '',
-        guestId: data['guestId'] as String? ?? '',
-        guestName: data['guestName'] as String? ?? '',
-        roomName: data['roomName'] as String? ?? '',
-        checkIn: _readFirestoreDate(data['checkIn']),
-        checkOut: _readFirestoreDate(data['checkOut']),
-        guests: (data['guests'] as num?)?.toInt() ?? 1,
-        pricePerNight: (data['pricePerNight'] as num?)?.toInt() ?? 0,
-        createdAt: _readFirestoreDate(data['createdAt']),
-        expiresAt: _readFirestoreDate(data['expiresAt']),
-        status: BookingStatus.values.firstWhere(
-          (status) => status.name == data['status'],
-          orElse: () => BookingStatus.pending,
-        ),
-        note: data['note'] as String? ?? '',
-      );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'roomId': roomId,
@@ -85,15 +74,20 @@ class Booking {
     'hostId': hostId,
     'guestId': guestId,
     'guestName': guestName,
+    'guestPhone': guestPhone,
     'roomName': roomName,
     'checkIn': checkIn.toIso8601String(),
     'checkOut': checkOut.toIso8601String(),
     'guests': guests,
     'pricePerNight': pricePerNight,
+    'memberDiscountPercent': memberDiscountPercent,
+    'couponDiscountPercent': couponDiscountPercent,
+    'couponCode': couponCode,
     'createdAt': createdAt.toIso8601String(),
     'expiresAt': expiresAt.toIso8601String(),
     'status': status.name,
     'note': note,
+    'payments': payments.map((payment) => payment.toJson()).toList(),
   };
   factory Booking.fromJson(Map<String, dynamic> j) => Booking(
     id: j['id'] as String,
@@ -102,15 +96,25 @@ class Booking {
     hostId: j['hostId'] as String,
     guestId: j['guestId'] as String,
     guestName: j['guestName'] as String,
+    guestPhone: j['guestPhone'] as String? ?? '',
     roomName: j['roomName'] as String,
     checkIn: DateTime.parse(j['checkIn'] as String),
     checkOut: DateTime.parse(j['checkOut'] as String),
     guests: j['guests'] as int,
     pricePerNight: j['pricePerNight'] as int,
+    memberDiscountPercent: (j['memberDiscountPercent'] as int?) ?? 0,
+    couponDiscountPercent: (j['couponDiscountPercent'] as int?) ?? 0,
+    couponCode: j['couponCode'] as String? ?? '',
     createdAt: DateTime.parse(j['createdAt'] as String),
     expiresAt: DateTime.parse(j['expiresAt'] as String),
     status: BookingStatus.values.byName(j['status'] as String),
     note: j['note'] as String,
+    payments: (j['payments'] as List<dynamic>? ?? const [])
+        .map(
+          (payment) =>
+              PaymentRecord.fromJson(Map<String, dynamic>.from(payment as Map)),
+        )
+        .toList(),
   );
 
   const Booking({
@@ -120,15 +124,20 @@ class Booking {
     required this.hostId,
     required this.guestId,
     required this.guestName,
+    this.guestPhone = '',
     required this.roomName,
     required this.checkIn,
     required this.checkOut,
     required this.guests,
     required this.pricePerNight,
+    this.memberDiscountPercent = 0,
+    this.couponDiscountPercent = 0,
+    this.couponCode = '',
     required this.createdAt,
     required this.expiresAt,
     this.status = BookingStatus.pending,
     this.note = '',
+    this.payments = const [],
   });
   final String id,
       roomId,
@@ -136,13 +145,29 @@ class Booking {
       hostId,
       guestId,
       guestName,
+      guestPhone,
       roomName,
       note;
   final DateTime checkIn, checkOut, createdAt, expiresAt;
   final int guests, pricePerNight;
+  final int memberDiscountPercent;
+  final int couponDiscountPercent;
+  final String couponCode;
+  int get discountPercent => memberDiscountPercent + couponDiscountPercent;
   final BookingStatus status;
+  final List<PaymentRecord> payments;
+  int get paidAmount =>
+      payments.fold(0, (sum, payment) => sum + payment.amount);
+  int get outstandingAmount {
+    final remaining = total - paidAmount;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  bool get isPaid => outstandingAmount == 0;
   int get nights => checkOut.difference(checkIn).inDays;
-  int get total => pricePerNight * nights;
+  int get subtotal => pricePerNight * nights;
+  int get discountAmount => subtotal * discountPercent ~/ 100;
+  int get total => subtotal - discountAmount;
   String get checkInCode => 'HHL-STAY|$id|$roomId|${checkIn.toIso8601String()}';
   BookingStatus effectiveStatus(DateTime now) =>
       status == BookingStatus.pending && !now.isBefore(expiresAt)
@@ -160,22 +185,42 @@ class Booking {
     hostId: hostId,
     guestId: guestId,
     guestName: guestName,
+    guestPhone: guestPhone,
     roomName: roomName,
     checkIn: checkIn,
     checkOut: checkOut,
     guests: guests,
     pricePerNight: pricePerNight,
+    memberDiscountPercent: memberDiscountPercent,
+    couponDiscountPercent: couponDiscountPercent,
+    couponCode: couponCode,
     createdAt: createdAt,
     expiresAt: expiresAt,
     status: value,
     note: note,
+    payments: payments,
+  );
+
+  Booking withPayment(PaymentRecord payment) => Booking(
+    id: id,
+    roomId: roomId,
+    homestayId: homestayId,
+    hostId: hostId,
+    guestId: guestId,
+    guestName: guestName,
+    guestPhone: guestPhone,
+    roomName: roomName,
+    checkIn: checkIn,
+    checkOut: checkOut,
+    guests: guests,
+    pricePerNight: pricePerNight,
+    memberDiscountPercent: memberDiscountPercent,
+    couponDiscountPercent: couponDiscountPercent,
+    couponCode: couponCode,
+    createdAt: createdAt,
+    expiresAt: expiresAt,
+    status: status,
+    note: note,
+    payments: [...payments, payment],
   );
 }
-
-DateTime _readFirestoreDate(Object? value) => switch (value) {
-  Timestamp timestamp => timestamp.toDate(),
-  DateTime date => date,
-  String date =>
-    DateTime.tryParse(date) ?? DateTime.fromMillisecondsSinceEpoch(0),
-  _ => DateTime.fromMillisecondsSinceEpoch(0),
-};

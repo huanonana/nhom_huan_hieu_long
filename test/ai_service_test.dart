@@ -8,14 +8,20 @@ import 'package:nhom_huan_hieu/features/ai/data/ai_service.dart';
 import 'package:nhom_huan_hieu/features/ai/domain/ai_message.dart';
 
 void main() {
-  test('calls Anthropic messages API for the three AI tasks', () async {
+  test('calls Gemini API for the three AI tasks', () async {
     final requests = <http.Request>[];
     final client = MockClient((request) async {
       requests.add(request);
       return http.Response(
         jsonEncode({
-          'content': [
-            {'type': 'text', 'text': 'Phản hồi mẫu'},
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'Phản hồi mẫu'},
+                ],
+              },
+            },
           ],
         }),
         200,
@@ -48,22 +54,38 @@ void main() {
     expect([chat, summary, description], everyElement('Phản hồi mẫu'));
     expect(requests, hasLength(3));
     for (final request in requests) {
-      expect(request.url, Uri.https('api.anthropic.com', '/v1/messages'));
-      expect(request.method, 'POST');
-      expect(request.headers['x-api-key'], 'test-key');
-      expect(request.headers['anthropic-version'], '2023-06-01');
+      expect(request.url.host, 'generativelanguage.googleapis.com');
       expect(
-        request.headers['anthropic-dangerous-direct-browser-access'],
-        'true',
+        request.url.path,
+        contains('/v1beta/models/gemini-3.5-flash-lite:generateContent'),
       );
-      expect(jsonDecode(request.body)['model'], 'claude-sonnet-4-6');
+      expect(request.method, 'POST');
+      expect(request.headers['x-goog-api-key'], 'test-key');
     }
     final chatBody = jsonDecode(requests.first.body) as Map<String, dynamic>;
-    expect(chatBody['system'], contains('Nhà Bên Đồi'));
-    expect(chatBody['messages'], [
-      {'role': 'user', 'content': 'Tôi muốn đi Đà Lạt'},
-      {'role': 'assistant', 'content': 'Bạn định đi ngày nào?'},
-      {'role': 'user', 'content': 'Tìm chỗ ở Đà Lạt'},
+    expect(
+      (chatBody['systemInstruction'] as Map)['parts'].toString(),
+      contains('Nhà Bên Đồi'),
+    );
+    expect(chatBody['contents'], [
+      {
+        'role': 'user',
+        'parts': [
+          {'text': 'Tôi muốn đi Đà Lạt'},
+        ],
+      },
+      {
+        'role': 'model',
+        'parts': [
+          {'text': 'Bạn định đi ngày nào?'},
+        ],
+      },
+      {
+        'role': 'user',
+        'parts': [
+          {'text': 'Tìm chỗ ở Đà Lạt'},
+        ],
+      },
     ]);
     expect(requests[1].body, contains('Phòng sạch'));
     expect(requests[2].body, contains('Nhà Bên Đồi'));
@@ -78,7 +100,7 @@ void main() {
 
     expect(
       await service.generateDescription('Nhà Bên Đồi', 'Đà Lạt', ['Wi-Fi']),
-      'Không thể kết nối AI lúc này',
+      AiService.serviceBusyMessage,
     );
     service.close();
   });
@@ -116,7 +138,7 @@ void main() {
     },
   );
 
-  test('returns a friendly message when the request times out', () async {
+  test('explains when the request times out', () async {
     final service = AiService(
       apiKey: 'test-key',
       client: MockClient(
@@ -126,12 +148,12 @@ void main() {
 
     expect(
       await service.summarizeReviews(['Phòng sạch']),
-      AiService.friendlyErrorMessage,
+      'Gemini phản hồi quá lâu. Hãy thử lại khi mạng ổn định hơn.',
     );
     service.close();
   });
 
-  test('returns a friendly message for an invalid API key (401)', () async {
+  test('explains when an API key is invalid (401)', () async {
     final service = AiService(
       apiKey: 'invalid-key',
       client: MockClient((_) async => http.Response('unauthorized', 401)),
@@ -139,12 +161,12 @@ void main() {
 
     expect(
       await service.chatReply(const [], 'Tìm homestay'),
-      AiService.friendlyErrorMessage,
+      AiService.invalidKeyMessage,
     );
     service.close();
   });
 
-  test('returns a friendly message when Anthropic returns 500', () async {
+  test('explains when Gemini returns 500', () async {
     final service = AiService(
       apiKey: 'test-key',
       client: MockClient((_) async => http.Response('server error', 500)),
@@ -152,7 +174,107 @@ void main() {
 
     expect(
       await service.generateDescription('Nhà Bên Đồi', 'Đà Lạt', []),
-      AiService.friendlyErrorMessage,
+      AiService.serviceBusyMessage,
+    );
+    service.close();
+  });
+
+  test('shows a sanitized Google reason for other 403 responses', () async {
+    const leakedLookingKey = 'AIza0123456789abcdefghijklmnopqrstuv';
+    final service = AiService(
+      apiKey: 'test-key',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {
+              'code': 403,
+              'status': 'PERMISSION_DENIED',
+              'message': 'Project has no access. $leakedLookingKey',
+              'details': [
+                {'reason': 'PROJECT_DENIED'},
+              ],
+            },
+          }),
+          403,
+        ),
+      ),
+    );
+
+    final reply = await service.chatReply(const [], 'Tìm homestay');
+    expect(reply, contains('PROJECT_DENIED'));
+    expect(reply, contains('Project has no access.'));
+    expect(reply, isNot(contains(leakedLookingKey)));
+    expect(reply, contains('[đã ẩn API key]'));
+    expect(AiService.isErrorMessage(reply), isTrue);
+    service.close();
+  });
+
+  test('explains when Google blocks a key before it reaches the API', () async {
+    final service = AiService(
+      apiKey: 'blocked-key',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {
+              'code': 403,
+              'status': 'PERMISSION_DENIED',
+              'message': 'Requests to this API are blocked.',
+              'details': [
+                {'reason': 'API_KEY_SERVICE_BLOCKED'},
+              ],
+            },
+          }),
+          403,
+        ),
+      ),
+    );
+
+    expect(
+      await service.chatReply(const [], 'Tìm homestay'),
+      AiService.blockedKeyMessage,
+    );
+    service.close();
+  });
+
+  test(
+    'explains when the Gemini API is disabled for the key project',
+    () async {
+      final service = AiService(
+        apiKey: 'test-key',
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {
+                'code': 403,
+                'status': 'PERMISSION_DENIED',
+                'message': 'Requests to this API method are blocked.',
+                'details': [
+                  {'reason': 'SERVICE_DISABLED'},
+                ],
+              },
+            }),
+            403,
+          ),
+        ),
+      );
+
+      expect(
+        await service.chatReply(const [], 'Tìm homestay'),
+        AiService.serviceDisabledMessage,
+      );
+      service.close();
+    },
+  );
+
+  test('explains free-tier quota exhaustion (429)', () async {
+    final service = AiService(
+      apiKey: 'test-key',
+      client: MockClient((_) async => http.Response('quota', 429)),
+    );
+
+    expect(
+      await service.summarizeReviews(['Phòng sạch']),
+      AiService.quotaExceededMessage,
     );
     service.close();
   });

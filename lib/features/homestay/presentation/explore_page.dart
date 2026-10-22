@@ -58,6 +58,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     ('Sa Pa', 'sapa'),
   ];
   String _region = 'Tất cả';
+  String? _appliedRouteCity;
   final _query = TextEditingController();
   final _resultsKey = GlobalKey();
   void _showResults() {
@@ -74,6 +75,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   String _city = 'Tất cả', _amenity = 'Tất cả', _sort = 'Gợi ý';
   int? _price;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final routeCity = GoRouterState.of(context).uri.queryParameters['city'];
+    if (routeCity != _appliedRouteCity) {
+      _appliedRouteCity = routeCity;
+      _city = routeCity ?? 'Tất cả';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -178,13 +190,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                             ref.read(staySearchProvider.notifier).state =
                                 StaySearch(dates: value.dates, guests: n),
                         itemBuilder: (_) => [
-                          for (var i = 1; i <= 10; i++)
+                          for (var i = 1; i <= 30; i++)
                             PopupMenuItem(value: i, child: Text('$i khách')),
                         ],
                         child: Container(
                           padding: const EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5F3EF),
+                            color: const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -329,6 +341,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     ref.watch(changesProvider);
     final repo = ref.watch(repositoryProvider);
     final favorites = ref.watch(favoritesProvider);
+    final recentIds = ref.watch(recentHomestaysProvider);
     final search = ref.watch(staySearchProvider);
     final featured = _featuredDestinations
         .where((d) => _region == 'Tất cả' || _regions[_region]!.contains(d.$1))
@@ -770,7 +783,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE9E5DF)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -833,6 +846,90 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                         ),
                       ),
                   ],
+                ),
+              ),
+            ],
+            if (!widget.favoritesOnly && recentIds.isNotEmpty) ...[
+              const SectionHeading(
+                'Đã xem gần đây',
+                'Tiếp tục xem những nơi bạn đang cân nhắc.',
+              ),
+              SizedBox(
+                height: 142,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: recentIds
+                      .where(
+                        (id) => repo.homestays.any((home) => home.id == id),
+                      )
+                      .length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final ids = recentIds
+                        .where(
+                          (id) => repo.homestays.any((home) => home.id == id),
+                        )
+                        .toList();
+                    final home = repo.homestays.firstWhere(
+                      (item) => item.id == ids[index],
+                    );
+                    return SizedBox(
+                      width: 258,
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => context.push('/homestays/${home.id}'),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 100,
+                                height: 142,
+                                child: StayPhoto(
+                                  home.id,
+                                  height: 142,
+                                  radius: 0,
+                                  label: false,
+                                ),
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        home.name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        home.city,
+                                        style: const TextStyle(color: muted),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'Xem lại  ›',
+                                        style: TextStyle(
+                                          color: brand,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -963,7 +1060,7 @@ class _HomeCardState extends ConsumerState<HomeCard> {
     final price = widget.price;
     final reviews = widget.reviews;
     final favorites = ref.watch(favoritesProvider);
-    final photos = photosFor(home.id);
+    final photos = photosFor(home.id, imageSources: home.imageUrls);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -987,7 +1084,7 @@ class _HomeCardState extends ConsumerState<HomeCard> {
                       itemCount: photos.length,
                       onPageChanged: (index) => setState(() => _photo = index),
                       itemBuilder: (context, index) {
-                        final image = Image.asset(
+                        final image = buildStayImage(
                           photos[index].asset,
                           width: double.infinity,
                           height: 244,
@@ -999,15 +1096,15 @@ class _HomeCardState extends ConsumerState<HomeCard> {
                                   return child;
                                 }
                                 return Shimmer.fromColors(
-                                  baseColor: const Color(0xFFEAE6E0),
-                                  highlightColor: const Color(0xFFF8F6F3),
+                                  baseColor: const Color(0xFFE2E8F0),
+                                  highlightColor: const Color(0xFFF8FAFC),
                                   loop: 1,
                                   child: const ColoredBox(color: Colors.white),
                                 );
                               },
                         );
                         return GestureDetector(
-                          onTap: () => context.go('/homestays/${home.id}'),
+                          onTap: () => context.push('/homestays/${home.id}'),
                           child: index == 0
                               ? Hero(
                                   tag: 'homestay-cover-${home.id}',
@@ -1143,7 +1240,7 @@ class _HomeCardState extends ConsumerState<HomeCard> {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F3EF),
+                              color: const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -1179,7 +1276,8 @@ class _HomeCardState extends ConsumerState<HomeCard> {
                           ),
                         ),
                         FilledButton(
-                          onPressed: () => context.go('/homestays/${home.id}'),
+                          onPressed: () =>
+                              context.push('/homestays/${home.id}'),
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFFEEF2FF),
                             foregroundColor: brand,

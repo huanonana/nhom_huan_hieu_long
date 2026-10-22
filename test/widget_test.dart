@@ -7,6 +7,8 @@ import 'package:nhom_huan_hieu/features/booking/data/demo_booking_repository.dar
 import 'package:nhom_huan_hieu/features/booking/domain/booking.dart';
 import 'package:nhom_huan_hieu/main.dart';
 import 'package:nhom_huan_hieu/core/widgets/stay_widgets.dart';
+import 'package:nhom_huan_hieu/features/auth/domain/app_user.dart';
+import 'package:nhom_huan_hieu/features/auth/presentation/auth_provider.dart';
 
 void main() {
   testWidgets('Overnight shortcut selects one night and keeps guest count', (
@@ -39,7 +41,20 @@ void main() {
       final repo = DemoBookingRepository(seed: false);
       final start = vietnamToday(repo.now).add(const Duration(days: 2));
       final container = ProviderContainer(
-        overrides: [repositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          repositoryProvider.overrideWithValue(repo),
+          currentUserProvider.overrideWith(
+            (ref) => Stream.value(
+              AppUser(
+                uid: 'guest-test-1',
+                email: 'guest@example.invalid',
+                displayName: 'Khách kiểm thử',
+                role: AppUserRole.guest,
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ),
+        ],
       );
       container.read(roleProvider.notifier).state = DemoRole.guest;
       container.read(staySearchProvider.notifier).state = StaySearch(
@@ -62,7 +77,8 @@ void main() {
       await tester.tap(find.text('Gửi yêu cầu'));
       await tester.pumpAndSettle();
       expect(repo.bookings.single.guests, 3);
-      expect(repo.bookings.single.total, 1900000);
+      expect(repo.bookings.single.total, 1805000);
+      expect(repo.bookings.single.guestId, 'guest-test-1');
       await tester.pumpWidget(const SizedBox());
       container.dispose();
     },
@@ -155,6 +171,80 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.rooms.first.name, 'Phòng mới sửa');
     // Rendering errors are reported by the test binding.
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+  testWidgets('Admin dashboard shows real demo revenue and operations stats', (
+    tester,
+  ) async {
+    final repo = DemoBookingRepository(seed: false);
+    repo.ensureRevenueDemoBookings();
+    final container = ProviderContainer(
+      overrides: [repositoryProvider.overrideWithValue(repo)],
+    );
+    container.read(roleProvider.notifier).state = DemoRole.host;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/host');
+    await tester.pumpAndSettle();
+    expect(find.text('Tổng quan quản trị'), findsOneWidget);
+    await reveal(tester, find.text('Doanh thu theo tháng'), 300);
+    expect(find.text('Doanh thu theo tháng'), findsOneWidget);
+    expect(
+      repo.bookings
+          .where((booking) => booking.status == BookingStatus.checkedOut)
+          .fold<int>(0, (sum, booking) => sum + booking.total),
+      7460000,
+    );
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('Admin adds a homestay and it is saved in the catalog', (
+    tester,
+  ) async {
+    final repo = DemoBookingRepository(seed: false);
+    final initialHomestayCount = repo.homestays.length;
+    final container = ProviderContainer(
+      overrides: [repositoryProvider.overrideWithValue(repo)],
+    );
+    container.read(roleProvider.notifier).state = DemoRole.host;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/host');
+    await tester.pumpAndSettle();
+    await reveal(tester, find.text('Thêm homestay'), 200);
+    await tester.tap(find.text('Thêm homestay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Thêm homestay'), findsWidgets);
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Nhà Vườn Demo');
+    await tester.enterText(fields.at(1), 'Cần Thơ');
+    await tester.enterText(fields.at(2), '12 Đường Hoa, Cần Thơ');
+    await tester.enterText(
+      fields.at(3),
+      'Homestay thử nghiệm của quản trị viên.',
+    );
+    await tester.enterText(fields.at(4), 'Wi-Fi, Bếp');
+    await tester.enterText(fields.at(5), 'Phòng sân vườn');
+    await tester.enterText(fields.at(6), '780000');
+    await tester.enterText(fields.at(7), '3');
+    await tester.tap(find.text('Lưu thay đổi'));
+    await tester.pumpAndSettle();
+    expect(repo.homestays, hasLength(initialHomestayCount + 1));
+    final added = repo.homestays.singleWhere(
+      (home) => home.name == 'Nhà Vườn Demo',
+    );
+    expect(added.city, 'Cần Thơ');
+    expect(added.amenities, containsAll(['Wi-Fi', 'Bếp']));
+    expect(
+      repo.rooms.where((room) => room.homestayId == added.id).single.name,
+      'Phòng sân vườn',
+    );
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
