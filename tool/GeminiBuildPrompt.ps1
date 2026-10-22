@@ -47,10 +47,10 @@ $buildButton.Add_Click({
     @{ GEMINI_API_KEY = $key } | ConvertTo-Json -Compress | Set-Content -LiteralPath $defineFile -Encoding utf8
     $key = $null
     Set-Location 'D:\LapTrinhMobile\nhom_huan_hieu_long'
-    & flutter build web --dart-define-from-file="$defineFile" --base-href / --output build/web-offline-check
+    & flutter build web --dart-define-from-file="$defineFile" --base-href / --output build/web --pwa-strategy=none
     if ($LASTEXITCODE -ne 0) { throw "Flutter build thất bại (exit $LASTEXITCODE)." }
-    $status.Text = 'Build xong. Gemini đã được cấu hình. Mở localhost:8086/#/ai-chat và tải lại trang.'
-    $form.Text = 'HHL Stay - Gemini đã bật'
+    $status.Text = 'Build xong và đã cập nhật localhost:8083. Thử gửi một tin nhắn ở trang AI để xác nhận Google có cấp quyền project.'
+    $form.Text = 'HHL Stay - Đã build, cần thử AI'
   } catch {
     $status.Text = 'Build lỗi: ' + $_.Exception.Message
     $buildButton.Enabled = $true

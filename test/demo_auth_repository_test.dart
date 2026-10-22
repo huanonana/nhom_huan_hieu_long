@@ -74,10 +74,10 @@ void main() {
         throwsA(isA<DemoAuthException>()),
       );
       await auth.signOut();
-    final snapshot = auth.exportSnapshot();
-    expect(snapshot, contains('passwordHash'));
-    expect(snapshot, contains('salt'));
-    expect(snapshot, isNot(contains('secret-pass-789')));
+      final snapshot = auth.exportSnapshot();
+      expect(snapshot, contains('passwordHash'));
+      expect(snapshot, contains('salt'));
+      expect(snapshot, isNot(contains('secret-pass-789')));
       auth.restoreSnapshot(snapshot);
       expect(auth.signedInUser, isNull);
       final restored = await auth.signIn(

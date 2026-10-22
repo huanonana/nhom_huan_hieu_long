@@ -279,7 +279,7 @@ void main() {
     ];
     await storage.settled;
     await tester.pump(const Duration(milliseconds: 20));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(secondTab.read(staffMembersProvider).single.id, member.id);
     expect(secondTab.read(staffShiftsProvider).single.staffId, member.id);
@@ -301,6 +301,7 @@ void main() {
         writeAuth: (value) async => authDisk = value,
       );
       final first = await storage.load();
+      expect(first.read(authModeProvider), isTrue);
       final user = await first
           .read(authRepositoryProvider)
           .signUp(
@@ -346,6 +347,82 @@ void main() {
       second.dispose();
     },
   );
+
+  test('Guest account, session, and booking history survive reload', () async {
+    String? disk;
+    String? authDisk;
+    final auth = DemoAuthRepository.instance;
+    await auth.signOut();
+    final storage = DemoStorage(
+      read: () async => disk,
+      write: (value) async => disk = value,
+      readAuth: () async => authDisk,
+      writeAuth: (value) async => authDisk = value,
+    );
+    final first = await storage.load();
+    final user = await first
+        .read(authRepositoryProvider)
+        .signUp(
+          email: 'guest-${DateTime.now().microsecondsSinceEpoch}@example.test',
+          password: 'guest-password-123',
+          role: AppUserRole.guest,
+          displayName: 'Khách kiểm thử',
+        );
+    final repo = first.read(repositoryProvider);
+    DateTime? checkIn;
+    Room? selectedRoom;
+    for (var offset = 1; offset <= 365 && selectedRoom == null; offset++) {
+      final candidate = vietnamToday(repo.now).add(Duration(days: offset));
+      for (final room in repo.rooms.where(
+        (room) => room.active && room.capacity >= 2,
+      )) {
+        if (repo.available(
+          room,
+          candidate,
+          candidate.add(const Duration(days: 1)),
+        )) {
+          selectedRoom = room;
+          checkIn = candidate;
+          break;
+        }
+      }
+    }
+    expect(selectedRoom, isNotNull);
+    expect(checkIn, isNotNull);
+    final roomForBooking = selectedRoom!;
+    final dateForBooking = checkIn!;
+    final booking = first
+        .read(changesProvider.notifier)
+        .book(
+          roomId: roomForBooking.id,
+          name: user.displayName,
+          guestId: user.uid,
+          start: dateForBooking,
+          end: dateForBooking.add(const Duration(days: 1)),
+          guests: 2,
+          note: '',
+        );
+    await storage.settled;
+    first.dispose();
+
+    final second = await storage.load();
+    final restoredUser = await second.read(currentUserProvider.future);
+    expect(second.read(authModeProvider), isTrue);
+    expect(restoredUser?.uid, user.uid);
+    expect(restoredUser?.role, AppUserRole.guest);
+    expect(second.read(roleProvider), DemoRole.guest);
+    expect(
+      second
+          .read(repositoryProvider)
+          .bookings
+          .any((item) => item.id == booking.id && item.guestId == user.uid),
+      isTrue,
+    );
+    expect(authDisk, isNotNull);
+    await second.read(authRepositoryProvider).signOut();
+    await storage.settled;
+    second.dispose();
+  });
 
   test('Local demo adds monthly revenue samples only once', () async {
     String? disk;
@@ -401,6 +478,196 @@ void main() {
     );
     second.dispose();
   });
+
+  test(
+    'Stable client/admin demo accounts, guest history and expenses persist',
+    () async {
+      String? disk;
+      String? authDisk;
+      final auth = DemoAuthRepository.instance;
+      auth.setPersistence(null);
+      auth.restoreSnapshot(
+        jsonEncode({'version': 1, 'currentUid': null, 'accounts': []}),
+      );
+      final storage = DemoStorage(
+        read: () async => disk,
+        write: (value) async => disk = value,
+        readAuth: () async => authDisk,
+        writeAuth: (value) async => authDisk = value,
+      );
+
+      final first = await storage.load();
+      await storage.settled;
+      expect(
+        auth.userByEmail(DemoAuthRepository.demoGuestEmail)?.role,
+        AppUserRole.guest,
+      );
+      expect(
+        auth.userByEmail(DemoAuthRepository.demoHostEmail)?.role,
+        AppUserRole.host,
+      );
+      expect(
+        auth.signedInUser,
+        isNull,
+        reason: 'Seeding accounts must not log out or switch the current user.',
+      );
+      expect(
+        first
+            .read(financeEntriesProvider)
+            .where((entry) => entry.id.startsWith('HHL-COST-DEMO-')),
+        hasLength(12),
+      );
+
+      final guest = await auth.signIn(
+        email: DemoAuthRepository.demoGuestEmail,
+        password: DemoAuthRepository.demoGuestPassword,
+      );
+      expect(
+        first
+            .read(repositoryProvider)
+            .bookings
+            .where((item) => item.guestId == guest.uid),
+        hasLength(6),
+      );
+      expect(
+        first
+            .read(repositoryProvider)
+            .reviews
+            .where((item) => item.guestId == guest.uid),
+        hasLength(3),
+      );
+      await storage.settled;
+      first.dispose();
+
+      final second = await storage.load();
+      await storage.settled;
+      expect((await second.read(currentUserProvider.future))?.uid, guest.uid);
+      expect(
+        second
+            .read(repositoryProvider)
+            .bookings
+            .where((item) => item.guestId == guest.uid),
+        hasLength(6),
+      );
+      expect(
+        second
+            .read(financeEntriesProvider)
+            .where((entry) => entry.id.startsWith('HHL-COST-DEMO-')),
+        hasLength(12),
+      );
+      expect(
+        () => auth.signIn(
+          email: DemoAuthRepository.demoGuestEmail,
+          password: 'wrong-password',
+        ),
+        throwsA(isA<DemoAuthException>()),
+      );
+
+      final manager = await auth.signIn(
+        email: DemoAuthRepository.demoHostEmail,
+        password: DemoAuthRepository.demoHostPassword,
+      );
+      expect(manager.role, AppUserRole.host);
+      await storage.settled;
+      second.dispose();
+
+      final third = await storage.load();
+      await storage.settled;
+      expect(
+        (await third.read(currentUserProvider.future))?.email,
+        DemoAuthRepository.demoHostEmail,
+      );
+      expect(
+        third
+            .read(financeEntriesProvider)
+            .where((entry) => entry.id.startsWith('HHL-COST-DEMO-')),
+        hasLength(12),
+      );
+      expect(authDisk, isNotNull);
+      expect(authDisk, isNot(contains(DemoAuthRepository.demoGuestPassword)));
+      expect(authDisk, isNot(contains(DemoAuthRepository.demoHostPassword)));
+      await auth.signOut();
+      await storage.settled;
+      third.dispose();
+      storage.dispose();
+      auth.setPersistence(null);
+      auth.restoreSnapshot(
+        jsonEncode({'version': 1, 'currentUid': null, 'accounts': []}),
+      );
+    },
+  );
+
+  testWidgets('Favorites and recent homes are isolated by signed-in account', (
+    tester,
+  ) async {
+    String? disk;
+    String? authDisk;
+    final auth = DemoAuthRepository.instance;
+    auth.setPersistence(null);
+    auth.restoreSnapshot(
+      jsonEncode({'version': 1, 'currentUid': null, 'accounts': []}),
+    );
+    final storage = DemoStorage(
+      read: () async => disk,
+      write: (value) async => disk = value,
+      readAuth: () async => authDisk,
+      writeAuth: (value) async => authDisk = value,
+    );
+    final first = await storage.load();
+    await tester.pumpAndSettle();
+
+    await auth.signIn(
+      email: DemoAuthRepository.demoGuestEmail,
+      password: DemoAuthRepository.demoGuestPassword,
+    );
+    await tester.pumpAndSettle();
+    first.read(favoritesProvider.notifier).state = {'garden'};
+    first.read(recentHomestaysProvider.notifier).state = ['garden'];
+    await storage.settled;
+
+    await auth.signIn(
+      email: DemoAuthRepository.demoHostEmail,
+      password: DemoAuthRepository.demoHostPassword,
+    );
+    await tester.pumpAndSettle();
+    expect(first.read(favoritesProvider), isEmpty);
+    expect(first.read(recentHomestaysProvider), isEmpty);
+    first.read(favoritesProvider.notifier).state = {'sea'};
+    first.read(recentHomestaysProvider.notifier).state = ['sea'];
+    await storage.settled;
+
+    await auth.signIn(
+      email: DemoAuthRepository.demoGuestEmail,
+      password: DemoAuthRepository.demoGuestPassword,
+    );
+    await tester.pumpAndSettle();
+    expect(first.read(favoritesProvider), {'garden'});
+    expect(first.read(recentHomestaysProvider), ['garden']);
+    await auth.signOut();
+    await tester.pumpAndSettle();
+    await storage.settled;
+    first.dispose();
+
+    final second = await storage.load();
+    await tester.pumpAndSettle();
+    await auth.signIn(
+      email: DemoAuthRepository.demoGuestEmail,
+      password: DemoAuthRepository.demoGuestPassword,
+    );
+    await tester.pump();
+    expect(second.read(favoritesProvider), {'garden'});
+    expect(second.read(recentHomestaysProvider), ['garden']);
+    await auth.signOut();
+    await tester.pump();
+    await storage.settled;
+    second.dispose();
+    storage.dispose();
+    auth.setPersistence(null);
+    auth.restoreSnapshot(
+      jsonEncode({'version': 1, 'currentUid': null, 'accounts': []}),
+    );
+  });
+
   test('Version 1 snapshot gains new destinations without losing edits', () {
     final old = DemoBookingRepository(seed: false, clock: () => today);
     old.saveRoom(room(), actorId: 'host-demo');

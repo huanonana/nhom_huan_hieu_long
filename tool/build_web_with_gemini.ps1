@@ -15,7 +15,7 @@ try {
   $plainKey = $null
 
   Write-Host 'Đang build HHL Stay Web với cấu hình Gemini...'
-  & flutter build web --dart-define-from-file="$defineFile"
+  & flutter build web --dart-define-from-file="$defineFile" --pwa-strategy=none
   if ($LASTEXITCODE -ne 0) { throw "Flutter build thất bại (exit $LASTEXITCODE)." }
   Write-Host 'BUILD_OK. Mở http://localhost:8083/#/ai-chat rồi nhấn Ctrl+Shift+R.' -ForegroundColor Green
 } catch {

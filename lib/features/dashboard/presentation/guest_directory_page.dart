@@ -4,7 +4,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../../auth/data/demo_auth_repository.dart';
+import '../../auth/presentation/auth_provider.dart';
 import '../../booking/domain/booking.dart';
+
+String _displayNameForGuest(
+  String guestId,
+  List<Booking> stays,
+  Object authRepository,
+) {
+  if (authRepository is DemoAuthRepository) {
+    final accountName = authRepository.userByUid(guestId)?.displayName.trim();
+    if (accountName != null && accountName.isNotEmpty) return accountName;
+  }
+  const genericNames = {'', 'khách', 'khách trải nghiệm'};
+  for (final stay in stays) {
+    final name = stay.guestName.trim();
+    if (!genericNames.contains(name.toLowerCase()) &&
+        !name.toLowerCase().startsWith('dữ liệu demo')) {
+      return name;
+    }
+  }
+  return stays.first.guestName;
+}
 
 class GuestDirectoryPage extends ConsumerStatefulWidget {
   const GuestDirectoryPage({super.key});
@@ -24,6 +46,7 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
   Widget build(BuildContext context) {
     ref.watch(changesProvider);
     final repository = ref.watch(repositoryProvider);
+    final authRepository = ref.watch(authRepositoryProvider);
     final staysByGuest = <String, List<Booking>>{};
     for (final booking in repository.bookings.where(
       (item) => item.hostId == 'host-demo',
@@ -33,9 +56,15 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
     final query = _search.text.trim().toLowerCase();
     final guests =
         staysByGuest.entries.where((entry) {
-          final first = entry.value.first;
+          entry.value.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          final latest = entry.value.first;
+          final displayName = _displayNameForGuest(
+            entry.key,
+            entry.value,
+            authRepository,
+          );
           return query.isEmpty ||
-              '${first.guestName} ${first.guestPhone} ${entry.key}'
+              '$displayName ${latest.guestPhone} ${entry.key}'
                   .toLowerCase()
                   .contains(query);
         }).toList()..sort(
@@ -92,7 +121,7 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
                           (stay) => stay.status == BookingStatus.checkedOut,
                         )
                         .toList();
-                    final spent = completed.fold<int>(
+                    final spent = stays.fold<int>(
                       0,
                       (sum, stay) => sum + stay.paidAmount,
                     );
@@ -109,16 +138,20 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
                           (sum, stay) => sum + stay.outstandingAmount,
                         );
                     final first = stays.first;
+                    final displayName = _displayNameForGuest(
+                      guest.key,
+                      stays,
+                      authRepository,
+                    );
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ExpansionTile(
                         leading: CircleAvatar(
                           backgroundColor: const Color(0xFFEEF2FF),
                           child: Text(
-                            first.guestName.isEmpty
+                            displayName.isEmpty
                                 ? '?'
-                                : first.guestName.characters.first
-                                      .toUpperCase(),
+                                : displayName.characters.first.toUpperCase(),
                             style: const TextStyle(
                               color: brand,
                               fontWeight: FontWeight.w800,
@@ -126,7 +159,7 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
                           ),
                         ),
                         title: Text(
-                          first.guestName,
+                          displayName,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         subtitle: Text(

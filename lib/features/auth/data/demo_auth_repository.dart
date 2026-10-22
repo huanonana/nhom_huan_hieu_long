@@ -16,6 +16,10 @@ class DemoAuthRepository implements AuthRepository {
   DemoAuthRepository._();
 
   static final DemoAuthRepository instance = DemoAuthRepository._();
+  static const demoGuestEmail = 'hhl-khach-demo-2026@example.com';
+  static const demoGuestPassword = 'HHLstayKhach2026!';
+  static const demoHostEmail = 'hhl-admin-demo-2026@example.com';
+  static const demoHostPassword = 'HHLstayAdmin2026!';
 
   final Map<String, ({String salt, String passwordHash, AppUser user})>
   _accounts = {};
@@ -26,9 +30,62 @@ class DemoAuthRepository implements AuthRepository {
 
   AppUser? get signedInUser => _user;
 
+  AppUser? userByEmail(String email) =>
+      _accounts[email.trim().toLowerCase()]?.user;
+
+  AppUser? userByUid(String uid) => _accounts.values
+      .map((account) => account.user)
+      .where((user) => user.uid == uid)
+      .firstOrNull;
+
   void setPersistence(Future<void> Function(String snapshot)? callback) {
     _persistSnapshot = callback;
   }
+
+  /// Adds stable, clearly labeled classroom accounts without signing in or
+  /// replacing the device's currently restored session.
+  bool ensureDemoAccounts() {
+    var changed = false;
+    changed |= _ensureDemoAccount(
+      email: demoGuestEmail,
+      password: demoGuestPassword,
+      displayName: 'Khách demo HHL Stay',
+      role: AppUserRole.guest,
+    );
+    changed |= _ensureDemoAccount(
+      email: demoHostEmail,
+      password: demoHostPassword,
+      displayName: 'Quản trị demo HHL Stay',
+      role: AppUserRole.host,
+    );
+    return changed;
+  }
+
+  bool _ensureDemoAccount({
+    required String email,
+    required String password,
+    required String displayName,
+    required AppUserRole role,
+  }) {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (_accounts.containsKey(normalizedEmail)) return false;
+    final salt = _newSalt();
+    final user = AppUser(
+      uid: 'local-${DateTime.now().microsecondsSinceEpoch}-${role.name}',
+      email: normalizedEmail,
+      displayName: displayName,
+      role: role,
+      createdAt: DateTime.now(),
+    );
+    _accounts[normalizedEmail] = (
+      salt: salt,
+      passwordHash: _hash(password, salt),
+      user: user,
+    );
+    return true;
+  }
+
+  Future<void> persistSnapshot() => _persist();
 
   /// Restores a previously saved local demo session before providers start.
   void restoreSnapshot(String? snapshot) {

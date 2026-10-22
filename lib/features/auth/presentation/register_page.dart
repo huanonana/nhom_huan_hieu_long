@@ -98,7 +98,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           const SizedBox(height: 26),
           const GuidanceTile(
             steps:
-                'Điền tên, email và mật khẩu từ 6 ký tự. Tài khoản chỉ dùng trong phiên chạy thử hiện tại; dữ liệu không đồng bộ lên máy chủ.',
+                'Chọn Khách để đặt phòng, hoặc Chủ nhà để đăng nhập khu vực quản lý. Tài khoản và đơn đặt được lưu trên trình duyệt này nên vẫn còn sau khi tải lại trang.',
           ),
           HoverMotion(
             scale: 1.012,

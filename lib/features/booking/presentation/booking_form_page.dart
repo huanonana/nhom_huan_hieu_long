@@ -19,7 +19,7 @@ class BookingFormPage extends ConsumerStatefulWidget {
 
 class _BookingFormPageState extends ConsumerState<BookingFormPage> {
   final _form = GlobalKey<FormState>();
-  final _name = TextEditingController(text: 'Khách trải nghiệm');
+  final _name = TextEditingController();
   final _note = TextEditingController();
   final _coupon = TextEditingController();
   DateTimeRange? _dates;
@@ -30,6 +30,10 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
   @override
   void initState() {
     super.initState();
+    final currentUser = ref.read(currentUserProvider).valueOrNull;
+    if (currentUser?.role == AppUserRole.guest) {
+      _name.text = currentUser!.displayName.trim();
+    }
     final search = ref.read(staySearchProvider);
     _dates = search.dates;
     _guests = search.guests;

@@ -39,7 +39,8 @@ void main() {
 
     container.read(routerProvider).go('/host/finance');
     await tester.pumpAndSettle();
-    expect(find.text('Doanh thu lưu trú'), findsOneWidget);
+    expect(find.text('Tiền đã thu'), findsOneWidget);
+    expect(find.text('Thu sau chi'), findsOneWidget);
     expect(find.text('Chi phí vận hành'), findsWidgets);
     expect(find.textContaining('RevPAR'), findsOneWidget);
 

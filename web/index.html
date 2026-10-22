@@ -18,7 +18,7 @@
     // Remove a previously installed Flutter worker so a returning guest gets
     // the current deployment instead of an old cached bundle.
     async function startHhlStay() {
-      const cleanupKey = 'hhl-stay-cache-cleaned-v2';
+      const cleanupKey = 'hhl-stay-cache-cleaned-v4';
       if ('serviceWorker' in navigator && !sessionStorage.getItem(cleanupKey)) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         const oldFlutterWorkers = registrations.filter((registration) =>

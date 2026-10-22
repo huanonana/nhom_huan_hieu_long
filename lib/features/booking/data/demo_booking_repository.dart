@@ -604,6 +604,111 @@ class DemoBookingRepository implements BookingRepository {
     }
   }
 
+  /// Adds account-scoped history for the named demo guest used in walkthroughs.
+  /// These stays are synthetic and never represent real reservations or revenue.
+  bool ensureGuestDemoHistory({
+    required String guestId,
+    required String guestName,
+  }) {
+    var changed = false;
+    final historyIds = {
+      'HHL-DEMO-2026-05',
+      'HHL-DEMO-2026-06',
+      'HHL-DEMO-2026-07',
+      'HHL-DEMO-2026-08',
+      'HHL-DEMO-2026-09',
+    };
+    for (var i = 0; i < _bookings.length; i++) {
+      final booking = _bookings[i];
+      if (!historyIds.contains(booking.id)) continue;
+      if (booking.guestId == guestId && booking.guestName == guestName) {
+        continue;
+      }
+      _bookings[i] = Booking(
+        id: booking.id,
+        roomId: booking.roomId,
+        homestayId: booking.homestayId,
+        hostId: booking.hostId,
+        guestId: guestId,
+        guestName: guestName,
+        roomName: booking.roomName,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        guests: booking.guests,
+        pricePerNight: booking.pricePerNight,
+        memberDiscountPercent: booking.memberDiscountPercent,
+        couponDiscountPercent: booking.couponDiscountPercent,
+        couponCode: booking.couponCode,
+        createdAt: booking.createdAt,
+        expiresAt: booking.expiresAt,
+        status: booking.status,
+        note: 'Dữ liệu demo: kỳ nghỉ tháng ${booking.checkIn.month}/2026.',
+        payments: booking.payments,
+      );
+      changed = true;
+    }
+
+    const octoberId = 'HHL-DEMO-CLIENT-2026-10';
+    if (!_bookings.any((booking) => booking.id == octoberId)) {
+      final checkIn = DateTime.utc(2026, 10, 9);
+      final stay = Booking(
+        id: octoberId,
+        roomId: 'garden-1',
+        homestayId: 'garden',
+        hostId: 'host-demo',
+        guestId: guestId,
+        guestName: guestName,
+        roomName: 'Phòng nhìn ra vườn',
+        checkIn: checkIn,
+        checkOut: DateTime.utc(2026, 10, 11),
+        guests: 2,
+        pricePerNight: 750000,
+        createdAt: DateTime.utc(2026, 10, 2),
+        expiresAt: DateTime.utc(2026, 10, 3),
+        status: BookingStatus.checkedOut,
+        note: 'Dữ liệu demo: kỳ nghỉ tháng 10/2026.',
+      );
+      _bookings.add(
+        stay.withPayment(
+          PaymentRecord(
+            id: 'PAY-DEMO-$octoberId',
+            amount: stay.total,
+            method: 'Dữ liệu demo',
+            paidAt: stay.checkOut,
+            note: 'Khoản thanh toán mẫu; không phải tiền thực thu.',
+          ),
+        ),
+      );
+      changed = true;
+    }
+
+    final reviewed = {'HHL-DEMO-2026-05', 'HHL-DEMO-2026-07', octoberId};
+    const comments = {
+      'HHL-DEMO-2026-05':
+          'Khu vườn yên tĩnh, phòng sạch và chủ nhà thân thiện.',
+      'HHL-DEMO-2026-07': 'Vị trí thuận tiện, trải nghiệm rất dễ chịu.',
+      octoberId: 'Không gian xanh, tiện nghi đầy đủ cho chuyến nghỉ ngắn ngày.',
+    };
+    for (final id in reviewed) {
+      if (_reviews.any((review) => review.bookingId == id)) continue;
+      final booking = _bookings.where((item) => item.id == id).firstOrNull;
+      if (booking == null || booking.guestId != guestId) continue;
+      _reviews.add(
+        StayReview(
+          bookingId: id,
+          homestayId: booking.homestayId,
+          guestId: guestId,
+          guestName: guestName,
+          rating: id == 'HHL-DEMO-2026-07' ? 4 : 5,
+          comment: comments[id]!,
+          createdAt: booking.checkOut.add(const Duration(days: 1)),
+        ),
+      );
+      changed = true;
+    }
+    return changed;
+  }
+
   void _owner(String homeId, String actorId) {
     if (!_homestays.any((h) => h.id == homeId && h.hostId == actorId)) {
       throw const BookingException('Bạn không có quyền quản lý homestay này.');

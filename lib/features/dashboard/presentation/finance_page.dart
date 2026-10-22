@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -65,11 +66,10 @@ class _FinancePageState extends ConsumerState<FinancePage> {
                 (paymentSum, payment) => paymentSum + payment.amount,
               ),
     );
-    final completedThisMonth = hostBookings.where(
-      (booking) =>
-          booking.status == BookingStatus.checkedOut &&
-          booking.checkOut.year == _month.year &&
-          booking.checkOut.month == _month.month,
+    final roomPerformance = calculateRoomPerformance(
+      month: _month,
+      asOf: DateTime.now(),
+      bookings: hostBookings,
     );
     final receivables = hostBookings
         .where(
@@ -87,10 +87,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     final payables = monthEntries
         .where((entry) => entry.status == FinanceEntryStatus.pending)
         .fold<int>(0, (sum, entry) => sum + entry.amount);
-    final roomNights = completedThisMonth.fold<int>(
-      0,
-      (sum, booking) => sum + booking.nights,
-    );
+    final roomNights = roomPerformance.roomNights;
     final roomCount = repo.rooms
         .where(
           (room) =>
@@ -106,10 +103,38 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     final summary = FinanceSummary(
       revenue: revenue,
       expenses: expenses,
+      stayRevenue: roomPerformance.revenue,
       bookingCount: bookings.length,
       roomNights: roomNights,
       availableRoomNights: availableRoomNights,
     );
+    final trendMonths = List.generate(
+      7,
+      (index) => DateTime(_month.year, _month.month - 6 + index),
+    );
+    final trendRevenue = trendMonths
+        .map(
+          (month) => hostBookings
+              .expand((booking) => booking.payments)
+              .where(
+                (payment) =>
+                    payment.paidAt.year == month.year &&
+                    payment.paidAt.month == month.month,
+              )
+              .fold<int>(0, (sum, payment) => sum + payment.amount),
+        )
+        .toList();
+    final trendExpenses = trendMonths
+        .map(
+          (month) => entries
+              .where(
+                (entry) =>
+                    entry.date.year == month.year &&
+                    entry.date.month == month.month,
+              )
+              .fold<int>(0, (sum, entry) => sum + entry.amount),
+        )
+        .toList();
     final width = MediaQuery.sizeOf(context).width;
     final contentWidth = width >= 900
         ? (width - 256).clamp(0.0, 1260.0)
@@ -214,9 +239,10 @@ class _FinancePageState extends ConsumerState<FinancePage> {
                   children: [
                     _FinanceMetric(
                       width: cardWidth,
-                      title: 'Doanh thu lưu trú',
+                      title: 'Tiền đã thu',
                       value: _money(summary.revenue),
-                      caption: '${summary.bookingCount} lượt đã trả phòng',
+                      caption:
+                          '${summary.bookingCount} đơn có giao dịch trong tháng',
                       icon: Icons.south_west_rounded,
                       color: const Color(0xFF059669),
                     ),
@@ -230,9 +256,9 @@ class _FinancePageState extends ConsumerState<FinancePage> {
                     ),
                     _FinanceMetric(
                       width: cardWidth,
-                      title: 'Doanh thu ròng',
+                      title: 'Thu sau chi',
                       value: _money(summary.netRevenue),
-                      caption: 'Doanh thu trừ chi phí đã nhập',
+                      caption: 'Tiền đã thu trừ chi phí đã ghi nhận',
                       icon: Icons.account_balance_wallet_outlined,
                       color: brand,
                     ),
@@ -258,13 +284,19 @@ class _FinancePageState extends ConsumerState<FinancePage> {
                       value:
                           '${(summary.occupancy * 100).toStringAsFixed(1)}% · ${_money(summary.averageDailyRate)}',
                       caption:
-                          'RevPAR ${_money(summary.revPar)} · ${summary.roomNights} đêm phòng',
+                          'Đã phát sinh ${_money(roomPerformance.revenue)} · RevPAR ${_money(summary.revPar)} · ${summary.roomNights} đêm phòng',
                       icon: Icons.hotel_class_outlined,
                       color: const Color(0xFF2563EB),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
+                _FinanceTrendCard(
+                  months: trendMonths,
+                  revenue: trendRevenue,
+                  expenses: trendExpenses,
+                ),
+                const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Doanh thu đã ghi nhận',
                   subtitle:
@@ -288,7 +320,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
                                 title:
                                     '${booking.roomName} · ${booking.guestName}',
                                 subtitle:
-                                    'Mã ${booking.id} · ${booking.payments.where((p) => p.paidAt.year == _month.year && p.paidAt.month == _month.month).length} giao dịch · ${booking.guestName}',
+                                    'Mã ${booking.id} · ${booking.payments.where((p) => p.paidAt.year == _month.year && p.paidAt.month == _month.month).length} giao dịch · ${_shortDate(booking.payments.last.paidAt)}',
                                 amount: booking.payments
                                     .where(
                                       (p) =>
@@ -593,6 +625,179 @@ class _FinanceMetric extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _FinanceTrendCard extends StatelessWidget {
+  const _FinanceTrendCard({
+    required this.months,
+    required this.revenue,
+    required this.expenses,
+  });
+
+  final List<DateTime> months;
+  final List<int> revenue;
+  final List<int> expenses;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = [
+      ...revenue,
+      ...expenses,
+    ].fold<int>(0, (max, value) => value > max ? value : max);
+    final chartMax = maxValue == 0 ? 1000000.0 : maxValue * 1.25;
+    final interval = chartMax / 4;
+
+    return _SectionCard(
+      title: 'Xu hướng thu · chi',
+      subtitle: 'Dòng tiền ghi nhận trong 7 tháng gần nhất',
+      trailing: Wrap(
+        spacing: 12,
+        children: [
+          _TrendLegend(label: 'Thu', color: const Color(0xFF059669)),
+          _TrendLegend(label: 'Chi', color: const Color(0xFFEA8A16)),
+        ],
+      ),
+      child: SizedBox(
+        height: 210,
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: (months.length - 1).toDouble(),
+            minY: 0,
+            maxY: chartMax,
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                fitInsideHorizontally: true,
+                fitInsideVertically: true,
+                getTooltipItems: (spots) => spots
+                    .map(
+                      (spot) => LineTooltipItem(
+                        '${months[spot.x.round()].monthLabel}\n${_money(spot.y.round())}',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: interval,
+              getDrawingHorizontalLine: (_) =>
+                  const FlLine(color: Color(0xFFE2E8F0), strokeWidth: 1),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 38,
+                  interval: interval,
+                  getTitlesWidget: (value, meta) => SideTitleWidget(
+                    meta: meta,
+                    space: 5,
+                    child: Text(
+                      _compactMoney(value),
+                      style: const TextStyle(color: muted, fontSize: 9),
+                    ),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  reservedSize: 24,
+                  getTitlesWidget: (value, meta) {
+                    final index = value.round();
+                    if (index < 0 || index >= months.length) {
+                      return const SizedBox.shrink();
+                    }
+                    return SideTitleWidget(
+                      meta: meta,
+                      space: 6,
+                      child: Text(
+                        'T${months[index].month}',
+                        style: const TextStyle(color: muted, fontSize: 10),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            lineBarsData: [
+              _trendLine(revenue, const Color(0xFF059669)),
+              _trendLine(expenses, const Color(0xFFEA8A16)),
+            ],
+          ),
+          duration: const Duration(milliseconds: 260),
+        ),
+      ),
+    );
+  }
+
+  LineChartBarData _trendLine(List<int> values, Color color) =>
+      LineChartBarData(
+        spots: [
+          for (var index = 0; index < values.length; index++)
+            FlSpot(index.toDouble(), values[index].toDouble()),
+        ],
+        isCurved: false,
+        color: color,
+        barWidth: 2.5,
+        dotData: const FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      );
+}
+
+class _TrendLegend extends StatelessWidget {
+  const _TrendLegend({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 5),
+      Text(
+        label,
+        style: const TextStyle(
+          color: muted,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
+    ],
+  );
+}
+
+extension on DateTime {
+  String get monthLabel => 'Tháng $month';
+}
+
+String _compactMoney(double value) {
+  if (value >= 1000000) {
+    final millions = value / 1000000;
+    return '${millions.toStringAsFixed(millions >= 10 ? 0 : 1)}tr';
+  }
+  if (value >= 1000) return '${(value / 1000).round()}k';
+  return value.round().toString();
 }
 
 class _SectionCard extends StatelessWidget {

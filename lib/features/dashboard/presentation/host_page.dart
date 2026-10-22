@@ -200,12 +200,7 @@ class HostPage extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         _QuickActions(
-          canAddRoom: homestays.isNotEmpty,
           onAddHomestay: () => editCatalog(context),
-          onAddRoom: homestays.isEmpty
-              ? null
-              : () =>
-                    editCatalog(context, home: homestays.first, roomMode: true),
           onCalendar: () => context.go('/host/calendar'),
         ),
         const SizedBox(height: 20),
@@ -857,16 +852,9 @@ class _AttentionCard extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions({
-    required this.canAddRoom,
-    required this.onAddHomestay,
-    required this.onAddRoom,
-    required this.onCalendar,
-  });
+  const _QuickActions({required this.onAddHomestay, required this.onCalendar});
 
-  final bool canAddRoom;
   final VoidCallback onAddHomestay, onCalendar;
-  final VoidCallback? onAddRoom;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -876,7 +864,7 @@ class _QuickActions extends StatelessWidget {
       const SizedBox(height: 9),
       LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth < 390 ? 2 : 3;
+          final columns = constraints.maxWidth < 390 ? 1 : 2;
           final width = (constraints.maxWidth - 8 * (columns - 1)) / columns;
           return Wrap(
             spacing: 8,
@@ -886,16 +874,8 @@ class _QuickActions extends StatelessWidget {
                 width: width,
                 child: _QuickActionTile(
                   icon: Icons.add_home_work_outlined,
-                  label: 'Thêm homestay',
+                  label: 'Thêm homestay, ảnh & phòng đầu tiên',
                   onTap: onAddHomestay,
-                ),
-              ),
-              SizedBox(
-                width: width,
-                child: _QuickActionTile(
-                  icon: Icons.bedroom_parent_outlined,
-                  label: 'Thêm phòng khác',
-                  onTap: onAddRoom,
                 ),
               ),
               SizedBox(

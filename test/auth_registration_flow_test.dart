@@ -32,6 +32,13 @@ void main() {
       await tester.pump();
       userUpdates.add(null);
       await tester.pumpAndSettle();
+      container.read(routerProvider).go('/host');
+      await tester.pumpAndSettle();
+      expect(
+        container.read(routerProvider).routeInformationProvider.value.uri.path,
+        '/admin/login',
+      );
+
       container.read(routerProvider).go('/book/room-1');
       await tester.pumpAndSettle();
       expect(
@@ -53,6 +60,31 @@ void main() {
       await userUpdates.close();
     },
   );
+
+  testWidgets('login guidance matches device-persisted demo accounts', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    container.read(routerProvider).go('/login');
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hướng dẫn thao tác'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(
+        'Tài khoản, đơn đặt và yêu thích được lưu trên thiết bị này',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('chỉ lưu tạm trong bộ nhớ'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
 
   testWidgets('registration layout stays scrollable on a narrow phone', (
     tester,

@@ -10,6 +10,8 @@ class LocalStayAssistant {
     required String query,
     required List<Homestay> homestays,
     required List<Room> rooms,
+    String offlineNotice =
+        'Gemini chưa được cấu hình nên mình đang hỗ trợ offline.',
   }) {
     if (homestays.isEmpty) {
       return 'Danh sách homestay hiện đang trống nên mình chưa thể gợi ý. '
@@ -73,8 +75,70 @@ class LocalStayAssistant {
 
     return '$heading\n$suggestions\n\n'
         'Đây là gợi ý theo dữ liệu homestay và phòng hiện có; bạn hãy mở chi tiết '
-        'để kiểm tra lịch trống và thông tin mới nhất. '
-        'AI chưa được cấu hình nên mình đang hỗ trợ offline.';
+        'để kiểm tra lịch trống và thông tin mới nhất. $offlineNotice';
+  }
+
+  static String summarizeReviews(List<String> reviewTexts) {
+    if (reviewTexts.isEmpty) return 'Chưa có đánh giá để tóm tắt.';
+    final ratings = <int>[];
+    final comments = <({int? rating, String text})>[];
+    for (final raw in reviewTexts) {
+      final match = RegExp(
+        r'^(\d+(?:\.\d+)?)/5 sao:\s*(.*)$',
+      ).firstMatch(raw.trim());
+      final rating = match == null ? null : double.tryParse(match.group(1)!);
+      final comment = match?.group(2)?.trim() ?? raw.trim();
+      if (rating != null) ratings.add(rating.round().clamp(1, 5));
+      if (comment.isNotEmpty) {
+        comments.add((rating: rating?.round(), text: comment));
+      }
+    }
+    if (comments.isEmpty) return 'Chưa có nội dung đánh giá để tóm tắt.';
+    final average = ratings.isEmpty
+        ? null
+        : ratings.reduce((a, b) => a + b) / ratings.length;
+    final positives = comments
+        .where((item) => item.rating == null || item.rating! >= 4)
+        .take(2)
+        .map((item) => '“${item.text}”')
+        .toList();
+    final improvements = comments
+        .where((item) => item.rating != null && item.rating! <= 3)
+        .take(2)
+        .map((item) => '“${item.text}”')
+        .toList();
+    return [
+      'Tóm tắt đánh giá theo dữ liệu hiện có (chế độ offline):',
+      if (average != null)
+        '• Điểm trung bình: ${average.toStringAsFixed(1)}/5 từ ${ratings.length} đánh giá.',
+      if (positives.isNotEmpty) '• Đánh giá tích cực: ${positives.join('; ')}',
+      if (improvements.isNotEmpty)
+        '• Nội dung cần lưu ý: ${improvements.join('; ')}',
+      if (ratings.isEmpty)
+        '• Chưa có điểm sao có thể tổng hợp; nội dung đánh giá được giữ nguyên bên dưới.',
+      'Bản tóm tắt được tạo tại thiết bị; Gemini trực tuyến hiện không khả dụng.',
+    ].join('\n');
+  }
+
+  static String generateDescription(
+    String homestayName,
+    String city,
+    List<String> amenities,
+  ) {
+    final name = homestayName.trim();
+    final location = city.trim();
+    final features = amenities
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet()
+        .toList();
+    final locationText = location.isEmpty ? '' : ' tại $location';
+    final amenityText = features.isEmpty
+        ? 'Chưa có tiện nghi nào được cập nhật.'
+        : 'Tiện nghi đã cập nhật: ${features.join(', ')}.';
+    return '$name$locationText. $amenityText Hãy xem thông tin phòng và lịch '
+        'còn trống trước khi gửi yêu cầu đặt. '
+        'Mô tả gợi ý offline được tạo từ thông tin bạn đã nhập.';
   }
 
   static String _cities(List<Homestay> homes) => homes

@@ -83,6 +83,43 @@ void main() {
       container.dispose();
     },
   );
+  testWidgets('Booking form pre-fills the signed-in guest name', (
+    tester,
+  ) async {
+    final repo = DemoBookingRepository(seed: false);
+    final container = ProviderContainer(
+      overrides: [
+        repositoryProvider.overrideWithValue(repo),
+        currentUserProvider.overrideWith(
+          (ref) => Stream.value(
+            AppUser(
+              uid: 'guest-prefill-test',
+              email: 'guest-prefill@example.invalid',
+              displayName: 'Nguyễn Khách Demo',
+              role: AppUserRole.guest,
+              createdAt: DateTime(2026),
+            ),
+          ),
+        ),
+      ],
+    );
+    container.read(roleProvider.notifier).state = DemoRole.guest;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/book/pine-2');
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextFormField>(find.byType(TextFormField).first)
+          .controller!
+          .text,
+      'Nguyễn Khách Demo',
+    );
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
   testWidgets('Price sort changes displayed home order and filters apply', (
     tester,
   ) async {
@@ -217,10 +254,12 @@ void main() {
     await tester.pumpAndSettle();
     container.read(routerProvider).go('/host');
     await tester.pumpAndSettle();
-    await reveal(tester, find.text('Thêm homestay'), 200);
-    await tester.tap(find.text('Thêm homestay'));
+    await reveal(tester, find.text('Thêm homestay, ảnh & phòng đầu tiên'), 200);
+    await tester.tap(find.text('Thêm homestay, ảnh & phòng đầu tiên'));
     await tester.pumpAndSettle();
     expect(find.text('Thêm homestay'), findsWidgets);
+    expect(find.textContaining('khách sẽ nhìn thấy'), findsOneWidget);
+    expect(find.text('Thêm phòng khác'), findsNothing);
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Nhà Vườn Demo');
     await tester.enterText(fields.at(1), 'Cần Thơ');

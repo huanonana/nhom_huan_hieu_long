@@ -109,7 +109,7 @@ void main() {
       expect(summarizeButton, findsOneWidget);
       await tester.tap(summarizeButton);
       await tester.pumpAndSettle();
-      expect(find.text('Tóm tắt từ AI'), findsOneWidget);
+      expect(find.text('Tóm tắt từ Gemini'), findsOneWidget);
       expect(find.text('Phòng sạch, vị trí thuận tiện.'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
@@ -214,9 +214,13 @@ void main() {
     await tester.tap(find.byTooltip('Gửi tin nhắn'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Gemini bị từ chối'), findsOneWidget);
+    expect(find.text('Gemini cần kiểm tra'), findsOneWidget);
     expect(
-      find.textContaining('Gemini bị Google từ chối quyền project'),
+      find.textContaining('Your project has been denied access.'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('Chat vẫn tiếp tục bằng gợi ý offline'),
       findsOneWidget,
     );
     expect(find.textContaining('Mình gợi ý một vài chỗ'), findsOneWidget);
@@ -247,7 +251,7 @@ void main() {
         UncontrolledProviderScope(container: container, child: const MyApp()),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Thêm homestay'));
+      await tester.tap(find.text('Thêm homestay, ảnh & phòng đầu tiên'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.text('Tên homestay'), findsOneWidget);
@@ -292,4 +296,45 @@ void main() {
       client.close();
     },
   );
+
+  testWidgets('description generation works locally without a Gemini key', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        aiServiceProvider.overrideWithValue(AiService(apiKey: '')),
+        repositoryProvider.overrideWithValue(DemoBookingRepository()),
+      ],
+    );
+    container.read(roleProvider.notifier).state = DemoRole.host;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Thêm homestay, ảnh & phòng đầu tiên'));
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Nhà Bên Đồi');
+    await tester.enterText(fields.at(1), 'Đà Lạt');
+    await tester.enterText(fields.at(4), 'Wi-Fi, Bếp');
+    await tester.pump();
+    final aiButton = find.descendant(
+      of: find.byTooltip('Để AI gợi ý nội dung mô tả'),
+      matching: find.bySubtype<OutlinedButton>(),
+    );
+    await tester.ensureVisible(aiButton);
+    await tester.tap(aiButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextFormField>(fields.at(3)).controller!.text,
+      contains('Nhà Bên Đồi tại Đà Lạt. Tiện nghi đã cập nhật: Wi-Fi, Bếp.'),
+    );
+    expect(find.textContaining('Đã tạo mô tả offline'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
 }

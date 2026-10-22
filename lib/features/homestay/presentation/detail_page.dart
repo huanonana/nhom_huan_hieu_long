@@ -8,6 +8,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/stay_widgets.dart';
 import '../../../core/widgets/stay_gallery.dart';
 import '../../ai/data/ai_service.dart';
+import '../../ai/domain/local_stay_assistant.dart';
 import '../../ai/presentation/ai_provider.dart';
 import '../../review/domain/review.dart';
 import '../../review/presentation/review_widgets.dart';
@@ -29,6 +30,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
   final _policyKey = GlobalKey();
   bool _summarizingReviews = false;
   String? _reviewSummary;
+  bool _reviewSummaryOffline = false;
   List<GlobalKey> get _sectionKeys => [
     _roomsKey,
     _reviewsKey,
@@ -130,17 +132,18 @@ class _DetailPageState extends ConsumerState<DetailPage> {
     setState(() {
       _summarizingReviews = true;
       _reviewSummary = null;
+      _reviewSummaryOffline = false;
     });
-    final summary = await ref.read(aiServiceProvider).summarizeReviews([
+    final reviewTexts = [
       for (final review in reviews) '${review.rating}/5 sao: ${review.comment}',
-    ]);
+    ];
+    final service = ref.read(aiServiceProvider);
+    var summary = await service.summarizeReviews(reviewTexts);
     if (!mounted) return;
     setState(() => _summarizingReviews = false);
     if (AiService.isErrorMessage(summary)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$summary Bạn vẫn xem được đánh giá bên dưới.')),
-      );
-      return;
+      summary = LocalStayAssistant.summarizeReviews(reviewTexts);
+      setState(() => _reviewSummaryOffline = true);
     }
     setState(() => _reviewSummary = summary);
   }
@@ -530,8 +533,10 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
-                                              'Tóm tắt từ AI',
+                                            Text(
+                                              _reviewSummaryOffline
+                                                  ? 'Tóm tắt đánh giá · offline'
+                                                  : 'Tóm tắt từ Gemini',
                                               style: TextStyle(
                                                 color: brand,
                                                 fontWeight: FontWeight.w800,

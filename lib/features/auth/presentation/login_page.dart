@@ -136,7 +136,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         const SizedBox(height: 15),
         const GuidanceTile(
           steps:
-              'Nhập email và mật khẩu đã đăng ký trong phiên chạy thử này. Tài khoản chỉ lưu tạm trong bộ nhớ; đơn đặt và yêu thích được lưu trên thiết bị.',
+              'Nhập email và mật khẩu đã đăng ký. Tài khoản, đơn đặt và yêu thích được lưu trên thiết bị này; không đồng bộ sang thiết bị khác.',
         ),
         const SizedBox(height: 22),
         Form(

@@ -53,6 +53,10 @@ class DemoStorage {
     var repository = DemoBookingRepository();
     var favorites = <String>{};
     var recentHomestays = <String>[];
+    final favoritesByUser = <String, Set<String>>{};
+    final recentHomestaysByUser = <String, List<String>>{};
+    var legacyFavorites = <String>{};
+    var legacyRecentHomestays = <String>[];
     var financeEntries = <FinanceEntry>[];
     var staffShifts = <StaffShift>[];
     var staffMembers = <StaffMember>[];
@@ -76,10 +80,26 @@ class DemoStorage {
       if (raw != null) {
         final data = jsonDecode(raw) as Map<String, dynamic>;
         repository = DemoBookingRepository.fromJson(data['repository']);
-        favorites = Set<String>.from(data['favorites'] ?? const <String>[]);
-        recentHomestays = List<String>.from(
+        legacyFavorites = Set<String>.from(
+          data['favorites'] ?? const <String>[],
+        );
+        legacyRecentHomestays = List<String>.from(
           data['recentHomestays'] ?? const <String>[],
         );
+        final savedFavoritesByUser = Map<String, dynamic>.from(
+          data['favoritesByUser'] as Map? ?? const {},
+        );
+        for (final entry in savedFavoritesByUser.entries) {
+          favoritesByUser[entry.key] = Set<String>.from(entry.value as List);
+        }
+        final savedRecentByUser = Map<String, dynamic>.from(
+          data['recentHomestaysByUser'] as Map? ?? const {},
+        );
+        for (final entry in savedRecentByUser.entries) {
+          recentHomestaysByUser[entry.key] = List<String>.from(
+            entry.value as List,
+          );
+        }
         financeEntries = (data['financeEntries'] as List<dynamic>? ?? const [])
             .map(
               (entry) => FinanceEntry.fromJson(
@@ -132,10 +152,58 @@ class DemoStorage {
       notice =
           'Không đọc được dữ liệu đã lưu. Phiên này chỉ lưu tạm; dữ liệu cũ được giữ nguyên.';
     }
-    if (canSave) repository.ensureRevenueDemoBookings();
+    var seededGuestHistory = false;
+    var seededDemoFinance = false;
+    var seededDemoAccounts = false;
+    if (readAuth != null && canSaveAuth) {
+      seededDemoAccounts = authRepository.ensureDemoAccounts();
+    }
+    if (canSave) {
+      repository.ensureRevenueDemoBookings();
+      if (readAuth != null && canSaveAuth) {
+        final beforeFinance = financeEntries.map((entry) => entry.id).toSet();
+        for (final entry in _demoFinanceEntries) {
+          if (!beforeFinance.contains(entry.id)) financeEntries.add(entry);
+        }
+        seededDemoFinance = financeEntries.length != beforeFinance.length;
+        final demoGuest = authRepository.userByEmail(
+          DemoAuthRepository.demoGuestEmail,
+        );
+        if (demoGuest != null && demoGuest.role == AppUserRole.guest) {
+          final before = jsonEncode(repository.toJson());
+          repository.ensureGuestDemoHistory(
+            guestId: demoGuest.uid,
+            guestName: demoGuest.displayName.isEmpty
+                ? 'Khách demo HHL Stay'
+                : demoGuest.displayName,
+          );
+          seededGuestHistory = before != jsonEncode(repository.toJson());
+        }
+      }
+    }
+    var activeUserId = authRepository.signedInUser?.uid;
+    if (activeUserId != null) {
+      favorites = favoritesByUser[activeUserId] ?? legacyFavorites;
+      recentHomestays =
+          recentHomestaysByUser[activeUserId] ?? legacyRecentHomestays;
+      favoritesByUser.putIfAbsent(activeUserId, () => {...favorites});
+      recentHomestaysByUser.putIfAbsent(
+        activeUserId,
+        () => [...recentHomestays],
+      );
+      legacyFavorites = {};
+      legacyRecentHomestays = [];
+    } else {
+      // Keep pre-account preferences available for one-time migration at login.
+      favorites = readAuth == null ? legacyFavorites : {};
+      recentHomestays = readAuth == null ? legacyRecentHomestays : <String>[];
+    }
+    if (seededGuestHistory || seededDemoFinance) lastKnownSnapshot = null;
     final container = ProviderContainer(
       overrides: [
-        authModeProvider.overrideWithValue(false),
+        // The real device app always uses account authentication. The
+        // provider's default remains available only to isolated widget tests.
+        authModeProvider.overrideWithValue(true),
         roleProvider.overrideWith(
           (ref) => authRepository.signedInUser?.role == AppUserRole.host
               ? DemoRole.host
@@ -156,10 +224,12 @@ class DemoStorage {
         _authPending = _authPending.then((_) async {
           try {
             await writeAuth!(snapshot);
-            container.read(storageNoticeProvider.notifier).state = null;
+            _setStorageNotice(container, null);
           } catch (_) {
-            container.read(storageNoticeProvider.notifier).state =
-                'Chưa lưu được tài khoản trên thiết bị. Hãy thử lại sau.';
+            _setStorageNotice(
+              container,
+              'Chưa lưu được tài khoản trên thiết bị. Hãy thử lại sau.',
+            );
           }
         });
         await _authPending;
@@ -167,15 +237,35 @@ class DemoStorage {
     } else {
       authRepository.setPersistence(null);
     }
+    if (seededDemoAccounts && writeAuth != null && canSaveAuth) {
+      await authRepository.persistSnapshot();
+    }
     String? previous = lastKnownSnapshot;
     var saving = false;
     var syncing = false;
     void save() {
       if (!canSave || syncing) return;
+      if (activeUserId != null) {
+        favoritesByUser[activeUserId!] = {...container.read(favoritesProvider)};
+        recentHomestaysByUser[activeUserId!] = [
+          ...container.read(recentHomestaysProvider),
+        ];
+        legacyFavorites = {};
+        legacyRecentHomestays = [];
+      } else if (readAuth == null) {
+        legacyFavorites = {...container.read(favoritesProvider)};
+        legacyRecentHomestays = [...container.read(recentHomestaysProvider)];
+      }
       final encoded = jsonEncode({
         'repository': repository.toJson(),
-        'favorites': container.read(favoritesProvider).toList(),
-        'recentHomestays': container.read(recentHomestaysProvider),
+        // Keep legacy fields for older builds; account maps are authoritative.
+        'favorites': legacyFavorites.toList(),
+        'recentHomestays': legacyRecentHomestays,
+        'favoritesByUser': {
+          for (final entry in favoritesByUser.entries)
+            entry.key: entry.value.toList(),
+        },
+        'recentHomestaysByUser': recentHomestaysByUser,
         'financeEntries': container
             .read(financeEntriesProvider)
             .map((entry) => entry.toJson())
@@ -210,6 +300,39 @@ class DemoStorage {
     container.listen(changesProvider, (_, _) => save());
     container.listen(favoritesProvider, (_, _) => save());
     container.listen(recentHomestaysProvider, (_, _) => save());
+    container.listen(currentUserProvider, (_, next) {
+      if (!next.hasValue) return;
+      final nextUserId = next.valueOrNull?.uid;
+      if (nextUserId == activeUserId) return;
+      if (activeUserId != null) {
+        favoritesByUser[activeUserId!] = {...container.read(favoritesProvider)};
+        recentHomestaysByUser[activeUserId!] = [
+          ...container.read(recentHomestaysProvider),
+        ];
+      }
+      activeUserId = nextUserId;
+      syncing = true;
+      if (activeUserId == null) {
+        container.read(favoritesProvider.notifier).state = {};
+        container.read(recentHomestaysProvider.notifier).state = [];
+      } else {
+        if (!favoritesByUser.containsKey(activeUserId)) {
+          favoritesByUser[activeUserId!] = {...legacyFavorites};
+          recentHomestaysByUser[activeUserId!] = [...legacyRecentHomestays];
+          legacyFavorites = {};
+          legacyRecentHomestays = [];
+        }
+        container.read(favoritesProvider.notifier).state = {
+          ...favoritesByUser[activeUserId!]!,
+        };
+        container.read(recentHomestaysProvider.notifier).state = [
+          ...recentHomestaysByUser[activeUserId!]!,
+        ];
+      }
+      syncing = false;
+      previous = null;
+      save();
+    });
     container.listen(financeEntriesProvider, (_, _) => save());
     container.listen(staffShiftsProvider, (_, _) => save());
     container.listen(staffMembersProvider, (_, _) => save());
@@ -226,11 +349,30 @@ class DemoStorage {
           );
           lastKnownSnapshot = raw;
           previous = raw;
-          container.read(favoritesProvider.notifier).state = Set<String>.from(
-            data['favorites'] ?? const [],
+          final externalFavoritesByUser = Map<String, dynamic>.from(
+            data['favoritesByUser'] as Map? ?? const {},
           );
-          container.read(recentHomestaysProvider.notifier).state =
-              List<String>.from(data['recentHomestays'] ?? const []);
+          for (final entry in externalFavoritesByUser.entries) {
+            favoritesByUser[entry.key] = Set<String>.from(entry.value as List);
+          }
+          final externalRecentByUser = Map<String, dynamic>.from(
+            data['recentHomestaysByUser'] as Map? ?? const {},
+          );
+          for (final entry in externalRecentByUser.entries) {
+            recentHomestaysByUser[entry.key] = List<String>.from(
+              entry.value as List,
+            );
+          }
+          container
+              .read(favoritesProvider.notifier)
+              .state = activeUserId == null
+              ? <String>{}
+              : {...(favoritesByUser[activeUserId!] ?? const <String>{})};
+          container
+              .read(recentHomestaysProvider.notifier)
+              .state = activeUserId == null
+              ? <String>[]
+              : [...(recentHomestaysByUser[activeUserId!] ?? const <String>[])];
           container
               .read(financeEntriesProvider.notifier)
               .state = (data['financeEntries'] as List<dynamic>? ?? const [])
@@ -270,4 +412,44 @@ class DemoStorage {
     save();
     return container;
   }
+
+  void _setStorageNotice(ProviderContainer container, String? notice) {
+    try {
+      container.read(storageNoticeProvider.notifier).state = notice;
+    } catch (_) {
+      // A sign-in event may finish after its tab/container is closed.
+    }
+  }
+
+  static final List<FinanceEntry> _demoFinanceEntries = [
+    _demoExpense('05-01', 'Vệ sinh và giặt là', 'Vận hành', 680000, 5, 8),
+    _demoExpense('05-02', 'Điện nước tháng 5', 'Điện nước', 1240000, 5, 24),
+    _demoExpense('06-01', 'Bảo trì điều hòa', 'Bảo trì', 950000, 6, 11),
+    _demoExpense('06-02', 'Vật dụng phòng nghỉ', 'Vật tư', 430000, 6, 26),
+    _demoExpense('07-01', 'Vệ sinh và giặt là', 'Vận hành', 760000, 7, 9),
+    _demoExpense('07-02', 'Điện nước tháng 7', 'Điện nước', 1380000, 7, 24),
+    _demoExpense('08-01', 'Thay khóa cửa phòng', 'Bảo trì', 620000, 8, 6),
+    _demoExpense('08-02', 'Vật dụng phòng nghỉ', 'Vật tư', 510000, 8, 25),
+    _demoExpense('09-01', 'Vệ sinh và giặt là', 'Vận hành', 720000, 9, 10),
+    _demoExpense('09-02', 'Điện nước tháng 9', 'Điện nước', 1190000, 9, 24),
+    _demoExpense('10-01', 'Bảo trì bình nóng lạnh', 'Bảo trì', 840000, 10, 7),
+    _demoExpense('10-02', 'Vật dụng phòng nghỉ', 'Vật tư', 390000, 10, 18),
+  ];
+
+  static FinanceEntry _demoExpense(
+    String suffix,
+    String title,
+    String category,
+    int amount,
+    int month,
+    int day,
+  ) => FinanceEntry(
+    id: 'HHL-COST-DEMO-2026-$suffix',
+    title: title,
+    category: category,
+    amount: amount,
+    date: DateTime.utc(2026, month, day),
+    note: 'Dữ liệu demo phục vụ kiểm thử và trình bày đồ án.',
+    status: FinanceEntryStatus.paid,
+  );
 }

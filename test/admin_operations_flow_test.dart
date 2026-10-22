@@ -8,6 +8,37 @@ import 'package:nhom_huan_hieu/features/homestay/domain/catalog.dart';
 import 'package:nhom_huan_hieu/main.dart';
 
 void main() {
+  testWidgets('finance dashboard explains revenue and charts seven months', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final container = ProviderContainer();
+    container.read(roleProvider.notifier).state = DemoRole.host;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/host/finance');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Xu hướng thu · chi'), findsOneWidget);
+    expect(
+      find.text('Dòng tiền ghi nhận trong 7 tháng gần nhất'),
+      findsOneWidget,
+    );
+    expect(find.text('Tiền đã thu'), findsOneWidget);
+    expect(find.text('Thu sau chi'), findsOneWidget);
+    expect(find.textContaining('đơn có giao dịch'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
   testWidgets('admin can record an operating expense', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
@@ -61,9 +92,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      container.read(repositoryProvider).rooms.any(
-        (room) => room.housekeepingStatus == HousekeepingStatus.cleaning,
-      ),
+      container
+          .read(repositoryProvider)
+          .rooms
+          .any(
+            (room) => room.housekeepingStatus == HousekeepingStatus.cleaning,
+          ),
       isTrue,
     );
     expect(tester.takeException(), isNull);

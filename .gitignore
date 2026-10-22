@@ -45,3 +45,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local authoring and report-render QA artifacts
+/.tmp/
+/output/report/qa_*/
+/output/report/qa_contact/
+/output/report/rendered/
+/output/report/*.png

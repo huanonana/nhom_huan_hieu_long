@@ -5,6 +5,53 @@ import 'package:nhom_huan_hieu/features/booking/data/demo_booking_repository.dar
 import 'package:nhom_huan_hieu/features/booking/domain/booking.dart';
 
 void main() {
+  test('Demo guest has paid stays and reviews from May through October', () {
+    final now = DateTime.utc(2026, 10, 22, 5);
+    final repo = DemoBookingRepository(clock: () => now, seed: false);
+    repo.ensureRevenueDemoBookings();
+
+    expect(
+      repo.ensureGuestDemoHistory(
+        guestId: 'guest-demo-hhl',
+        guestName: 'Khách Demo HHL',
+      ),
+      isTrue,
+    );
+    final history = repo.bookings
+        .where((booking) => booking.guestId == 'guest-demo-hhl')
+        .toList();
+    expect(history, hasLength(6));
+    expect(history.map((booking) => booking.checkIn.month).toSet(), {
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+    });
+    expect(
+      history.every(
+        (booking) =>
+            booking.status == BookingStatus.checkedOut &&
+            booking.isPaid &&
+            booking.note.startsWith('Dữ liệu demo:'),
+      ),
+      isTrue,
+    );
+    expect(repo.reviews, hasLength(3));
+    expect(
+      repo.reviews.every((review) => review.guestId == 'guest-demo-hhl'),
+      isTrue,
+    );
+    expect(
+      repo.ensureGuestDemoHistory(
+        guestId: 'guest-demo-hhl',
+        guestName: 'Khách Demo HHL',
+      ),
+      isFalse,
+    );
+  });
+
   test('A confirmed booking needs its matching QR payload for check-in', () {
     final now = DateTime.utc(2026, 9, 28, 5);
     final repo = DemoBookingRepository(clock: () => now, seed: false);

@@ -108,8 +108,10 @@ sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
 
 Ứng dụng không kết nối Firebase. Danh mục, đơn đặt và yêu thích mẫu được lưu
 cục bộ trên thiết bị bằng SharedPreferences; chúng không đồng bộ giữa thiết bị.
-Đăng ký/đăng nhập chỉ mô phỏng trong phiên chạy hiện tại. Có thể chuyển giữa
-vai trò Khách và Quản trị viên từ trang Hồ sơ để thử các luồng.
+Tài khoản đăng ký, mật khẩu đã băm và phiên đăng nhập cũng được lưu cục bộ,
+nên vẫn còn sau khi tải lại trang trên cùng thiết bị/trình duyệt. Đây là xác thực
+demo, không thay thế dịch vụ xác thực an toàn cho sản phẩm thật. Có thể chuyển
+giữa vai trò Khách và Quản trị viên demo từ trang Hồ sơ để thử các luồng.
 
 Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
 http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
@@ -154,6 +156,10 @@ từ việc có mã nguồn trên GitHub.
 
 ## Tài liệu
 
+- Báo cáo đồ án Word/PDF: `output/report/Bao_cao_do_an_HHL_Stay.docx` and `.pdf`.
+  The report source and captured app screens are in `tool/generate_hhl_report.py`
+  and `docs/report_assets/`; regenerate with `python tool/generate_hhl_report.py`
+  after installing `python-docx` and Pillow.
 - [Flutter Web](https://docs.flutter.dev/platform-integration/web/setup)
 - [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
 - [Dev Container CLI](https://code.visualstudio.com/docs/devcontainers/devcontainer-cli)

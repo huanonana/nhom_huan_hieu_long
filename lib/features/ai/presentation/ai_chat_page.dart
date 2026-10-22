@@ -29,7 +29,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   ];
   bool _sending = false;
   bool? _apiAvailable;
-  String? _projectAccessError;
+  String? _apiStatusMessage;
 
   @override
   void dispose() {
@@ -124,33 +124,26 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } catch (_) {
       reply = AiService.friendlyErrorMessage;
     }
-    final projectDenied =
-        service.isConfigured &&
-        reply.startsWith('Gemini từ chối yêu cầu (403):');
-    if (projectDenied) {
+    final apiFailed = service.isConfigured && AiService.isErrorMessage(reply);
+    String? apiDiagnostic;
+    if (apiFailed) {
       final diagnostic = reply;
-      final localReply =
-          LocalStayAssistant.reply(
-            query: text,
-            homestays: homes,
-            rooms: rooms,
-          ).replaceFirst(
-            'AI chưa được cấu hình nên mình đang hỗ trợ offline.',
-            'Gemini đang tạm thời không truy cập được nên mình đang gợi ý '
-                'theo dữ liệu có sẵn.',
-          );
-      reply = '$localReply\n\n$diagnostic';
+      apiDiagnostic = diagnostic;
+      final localReply = LocalStayAssistant.reply(
+        query: text,
+        homestays: homes,
+        rooms: rooms,
+        offlineNotice:
+            'Gemini hiện không truy cập được nên mình đang hỗ trợ '
+            'theo dữ liệu có sẵn.',
+      );
+      reply = '$localReply\n\nChi tiết Gemini: $diagnostic';
     }
     if (!mounted) return;
     setState(() {
       if (service.isConfigured) {
-        _apiAvailable = !AiService.isErrorMessage(reply);
-        if (projectDenied) {
-          _apiAvailable = false;
-          _projectAccessError =
-              'Gemini bị Google từ chối quyền project (403). Mình đang gợi ý '
-              'từ dữ liệu homestay có sẵn; hãy kiểm tra quyền project trong AI Studio.';
-        }
+        _apiAvailable = !apiFailed;
+        _apiStatusMessage = apiDiagnostic;
       }
       _messages.add(AiMessage(role: AiMessageRole.assistant, content: reply));
       _sending = false;
@@ -175,8 +168,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ? 'Gemini chưa thử'
         : _apiAvailable!
         ? 'Gemini đang hoạt động'
-        : _projectAccessError != null
-        ? 'Gemini bị từ chối'
         : 'Gemini cần kiểm tra';
     final statusColor = !configured
         ? const Color(0xFF70428F)
@@ -256,7 +247,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               ),
             ),
           ),
-          if (_projectAccessError != null)
+          if (_apiStatusMessage != null)
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 920),
@@ -276,7 +267,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       const SizedBox(width: 9),
                       Expanded(
                         child: Text(
-                          _projectAccessError!,
+                          'Gemini chưa phản hồi được. Chat vẫn tiếp tục bằng '
+                          'gợi ý offline. Chi tiết: $_apiStatusMessage',
                           style: const TextStyle(
                             color: Color(0xFF704B12),
                             fontSize: 12,

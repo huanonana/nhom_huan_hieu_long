@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/state/app_state.dart';
 import '../../ai/data/ai_service.dart';
+import '../../ai/domain/local_stay_assistant.dart';
 import '../../ai/presentation/ai_provider.dart';
 import '../../booking/domain/booking.dart';
 import '../../homestay/domain/catalog.dart';
@@ -171,22 +172,36 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList();
-      final result = await ref
-          .read(aiServiceProvider)
-          .generateDescription(
-            _fields[0].text.trim(),
-            _fields[1].text.trim(),
-            amenities,
-          );
+      final service = ref.read(aiServiceProvider);
+      final localResult = () => LocalStayAssistant.generateDescription(
+        _fields[0].text,
+        _fields[1].text,
+        amenities,
+      );
+      var usedOffline = !service.isConfigured;
+      var result = usedOffline
+          ? localResult()
+          : await service.generateDescription(
+              _fields[0].text.trim(),
+              _fields[1].text.trim(),
+              amenities,
+            );
       if (!mounted) return;
       if (AiService.isErrorMessage(result)) {
+        result = localResult();
+        usedOffline = true;
+      }
+      _fields[3].value = TextEditingValue(
+        text: result,
+        selection: TextSelection.collapsed(offset: result.length),
+      );
+      if (usedOffline) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$result Bạn có thể tự nhập mô tả.')),
-        );
-      } else {
-        _fields[3].value = TextEditingValue(
-          text: result,
-          selection: TextSelection.collapsed(offset: result.length),
+          const SnackBar(
+            content: Text(
+              'Đã tạo mô tả offline từ tên, địa điểm và tiện nghi bạn nhập.',
+            ),
+          ),
         );
       }
     } finally {
@@ -249,6 +264,113 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                       'Thêm thông tin, ảnh và phòng đầu tiên trong cùng một bước.',
                     ),
                   ),
+                if (!widget.roomMode) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ảnh chỗ nghỉ · khách sẽ nhìn thấy',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_images.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(minHeight: 128),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F3FF),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFDCD6FE)),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 30,
+                            color: Color(0xFF5145E5),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Thêm ảnh phòng hoặc không gian chung để khách nhận ra chỗ nghỉ.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _pickingImages ? null : _pickImages,
+                            icon: _pickingImages
+                                ? const SizedBox.square(
+                                    dimension: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.photo_library_outlined),
+                            label: Text(
+                              _pickingImages ? 'Đang tải ảnh…' : 'Chọn ảnh',
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < _images.length; i++)
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: buildStayImage(
+                                  _images[i],
+                                  width: 86,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: IconButton.filledTonal(
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () =>
+                                      setState(() => _images.removeAt(i)),
+                                  icon: const Icon(Icons.close, size: 15),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  if (_images.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _pickingImages ? null : _pickImages,
+                        icon: _pickingImages
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add_photo_alternate_outlined),
+                        label: Text(
+                          _pickingImages ? 'Đang tải ảnh…' : 'Thêm ảnh khác',
+                        ),
+                      ),
+                    ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Chọn tối đa 4 ảnh JPG, PNG hoặc WebP. Ảnh lưu trên thiết bị này.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 for (var i = 0; i < labels.length; i++) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
@@ -334,70 +456,6 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
                         ),
                       ),
                     ),
-                ],
-                if (!widget.roomMode) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Ảnh chỗ nghỉ (${_images.length}/4)',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (_images.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (var i = 0; i < _images.length; i++)
-                          Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: buildStayImage(
-                                  _images[i],
-                                  width: 86,
-                                  height: 70,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: IconButton.filledTonal(
-                                  visualDensity: VisualDensity.compact,
-                                  onPressed: () =>
-                                      setState(() => _images.removeAt(i)),
-                                  icon: const Icon(Icons.close, size: 15),
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: _pickingImages ? null : _pickImages,
-                      icon: _pickingImages
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add_photo_alternate_outlined),
-                      label: Text(
-                        _pickingImages
-                            ? 'Đang tải ảnh…'
-                            : 'Chọn ảnh từ thiết bị',
-                      ),
-                    ),
-                  ),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Ảnh được lưu trong dữ liệu demo trên thiết bị này.',
-                    ),
-                  ),
                 ],
                 if (widget.roomMode)
                   SwitchListTile(
