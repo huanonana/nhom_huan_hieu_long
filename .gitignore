@@ -52,3 +52,12 @@ app.*.map.json
 /output/report/qa_contact/
 /output/report/rendered/
 /output/report/*.png
+
+# Keep the shared repository focused on the application. Old starter/report
+# artifacts remain on this machine but are not part of the app repository.
+/homestay_app/
+/output/
+/docs/report_assets/
+/docs/tuan-1.md
+/docs/kiem-thu-ban-dau.md
+/tool/generate_hhl_report.py

@@ -1,165 +1,62 @@
-# Xây dựng ứng dụng quản lý homestay — Huấn, Hiếu, Long
+# HHL Stay
 
-> Bản phát triển app sau tuần 1: xem [luồng chạy thử](docs/chay-ban-thu.md) và
-> [đặc tả đã rà soát](docs/dac-ta-app.md). App hiện dùng dữ liệu demo lưu trên máy,
-> có khám phá, đặt/duyệt đơn và chuyển vai trò thử nghiệm. Hướng dẫn tuần 1 bên
-> dưới được giữ làm tài liệu lịch sử; màn hình Home đã được phát triển tiếp.
+Ứng dụng Flutter quản lý homestay, gồm trải nghiệm khách đặt phòng và khu vực quản trị chủ nhà. Mã nguồn ứng dụng chính nằm ngay ở thư mục gốc repo.
 
-Bài thực hành tuần 1: lập nhóm, tạo repo chung và khung Flutter chạy trên web
-bằng Dev Container/GitHub Codespaces.
+## Chạy ứng dụng
 
-## Thành viên
-
-| Họ và tên | Mã sinh viên | GitHub |
-|---|---|---|
-| Phạm Văn Huấn | 23010331 | [huanonana](https://github.com/huanonana) |
-| Nguyễn Hữu Lê Hiếu | 23010985 | [lehiu1310](https://github.com/lehiu1310) |
-| Nguyễn Hải Long | 2301872 | [Longsokiuu](https://github.com/Longsokiuu) |
-
-Repo chung: https://github.com/huanonana/nhom_huan_hieu_long
-
-## Phạm vi tuần 1
-
-Ứng dụng có màn hình Home riêng mang tên **Homestay HHL**, giới thiệu các
-chức năng dự kiến và hộp thoại thông tin thành viên. Ảnh của giảng viên chỉ
-minh họa cách thiết lập môi trường, không phải giao diện cần sao chép.
-Chưa triển khai đăng nhập, phòng, đặt phòng, hóa đơn hay cơ sở dữ liệu.
-
-**Dự án chính nằm ở thư mục gốc repo** (cùng cấp với README này).
-Thư mục `homestay_app/` là bản khung cũ được giữ lại để tham khảo, không dùng
-để chạy hoặc nộp bài tuần 1. Bộ phân tích mã bỏ qua bản cũ này.
-
-## Chạy bằng GitHub Codespaces
-
-1. Mở repo, chọn **Code → Codespaces → Create codespace on main**.
-2. Chờ Dev Container dựng xong. Container cài Flutter **3.35.2 stable**
-   (Dart 3.9.0), extension Dart/Flutter và tự chạy `flutter pub get`.
-3. Trong terminal tại thư mục gốc repo:
-
-   ```bash
-   flutter --version
-   dart --version
-   flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
-   ```
-
-4. Mở tab **Ports**, chọn **Open in Browser** tại cổng **8080**.
-   Có thể giữ cổng ở chế độ Private khi tự kiểm tra.
-5. Kiểm tra màn hình Home; nhấn **Thông tin nhóm** để xem họ tên/MSSV và đóng hộp thoại.
-
-Nếu Codespace đã tồn tại trước khi cập nhật cấu hình, chạy lệnh
-**Dev Containers: Rebuild Container** từ Command Palette.
-Có thể chọn cấu hình **Homestay Web (8080)** trong Run and Debug của VS Code.
-
-## Chạy bằng Dev Container trên máy
-
-Cần Docker Desktop đang chạy, VS Code và extension **Dev Containers**.
-Clone repo, mở thư mục gốc bằng VS Code, chọn **Dev Containers: Reopen in Container**.
-Sau đó thực hiện các lệnh Flutter ở trên.
-
-Nếu dùng CLI theo tài liệu môn học, cài Node.js/npm rồi chạy ở máy chủ:
-
-```bash
-npm install -g @devcontainers/cli
-devcontainer up --workspace-folder .
-devcontainer exec --workspace-folder . flutter --version
-devcontainer exec --workspace-folder . flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
-```
-
-CLI không tự mở cổng về máy như VS Code; dùng VS Code để forward cổng 8080.
-Nếu chỉ muốn dựng image: `devcontainer build --workspace-folder .`.
-
-Container tập trung vào **Flutter Web cho bài tuần 1**, chưa cài Android SDK
-hay thiết lập iOS. Thư mục Android/iOS là khung gốc, chưa được xác nhận build.
-
-## Chạy trực tiếp không qua container
-
-Cài Flutter 3.35.2 stable, rồi chạy ở gốc repo:
+Cần Flutter stable có Dart 3.9 trở lên.
 
 ```bash
 flutter pub get
-flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8080
 ```
 
-Mở http://localhost:8080.
+Mở `http://127.0.0.1:8080`. Để chạy trên thiết bị Android/iOS, chọn thiết bị tương ứng trong `flutter run`.
 
-## Chạy với tính năng AI
+## Tài khoản demo
 
-Các tính năng tóm tắt đánh giá, viết mô tả homestay và chatbot dùng Gemini API
-với model `gemini-3.5-flash-lite`. Model này hiện có Free Tier; hạn mức miễn
-phí có thể thay đổi và áp dụng giới hạn sử dụng. Tạo key mới trong
-[Google AI Studio](https://aistudio.google.com/app/apikey), không cần nạp credit
-cho Free Tier, rồi chạy app với:
+App tự tạo hai tài khoản demo trên thiết bị khi khởi động lần đầu:
+
+| Vai trò | Email | Mật khẩu |
+| --- | --- | --- |
+| Khách | `hhl-khach-demo-2026@example.com` | `HHLstayKhach2026!` |
+| Quản trị viên | `hhl-admin-demo-2026@example.com` | `HHLstayAdmin2026!` |
+
+Đây là tài khoản phục vụ trình diễn. Đăng ký, phiên đăng nhập, homestay, phòng, đơn đặt, đánh giá và yêu thích lưu cục bộ trên trình duyệt/thiết bị bằng SharedPreferences; chúng không đồng bộ sang máy khác và có thể mất khi xóa dữ liệu trình duyệt.
+
+## Chức năng chính
+
+- Khách khám phá, tìm kiếm và lọc homestay/phòng, xem chi tiết, chọn ngày/số khách, đặt phòng, theo dõi hoặc hủy đơn, lưu yêu thích và đánh giá sau khi trả phòng.
+- Chủ nhà/quản trị viên quản lý homestay và phòng, xem lịch phòng, duyệt/từ chối đơn, nhận/trả phòng, bật bảo trì và theo dõi dashboard cùng báo cáo tài chính demo.
+- Tư vấn và hỗ trợ nội dung bằng Gemini khi cấu hình API key; chatbot có chế độ tư vấn ngoại tuyến.
+- Giao diện tiếng Việt, responsive, sử dụng Be Vietnam Pro.
+
+## AI Gemini (tùy chọn)
+
+Tạo key tại [Google AI Studio](https://aistudio.google.com/app/apikey), sau đó truyền key khi chạy:
 
 ```bash
-flutter run --dart-define=GEMINI_API_KEY=xxx
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8080 --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 
-Thay `xxx` bằng API key của bạn. Không commit hoặc chia sẻ key trong mã nguồn.
-Không dán key vào chat, ảnh chụp màn hình hoặc lệnh có thể được lưu trong
-terminal history. Nếu key bị lộ hoặc Google báo key bị chặn, hãy thu hồi key đó
-và tạo key mới trong AI Studio. Flutter Web đóng gói key vào JavaScript trình
-duyệt, nên cấu hình này chỉ dành cho demo cục bộ; bản phát hành thật cần gọi AI
-qua backend để giữ key ở máy chủ.
-Nếu không truyền key, app vẫn chạy đầy đủ các chức năng khác; các tính năng AI
-sẽ chatbot tư vấn bằng dữ liệu có sẵn ở chế độ offline; các tác vụ AI tạo sinh
-sẽ hiện thông báo **“Tính năng AI chưa khả dụng”**.
+Không commit API key. Flutter Web đưa giá trị này vào mã JavaScript phía trình duyệt, vì vậy chỉ dùng key giới hạn cho demo; sản phẩm thật cần proxy qua backend. Không có key, các luồng đặt phòng và quản lý vẫn hoạt động, chatbot chuyển sang nội dung tư vấn có sẵn.
 
-## Dữ liệu và tài khoản trong bản demo
-
-Ứng dụng không kết nối Firebase. Danh mục, đơn đặt và yêu thích mẫu được lưu
-cục bộ trên thiết bị bằng SharedPreferences; chúng không đồng bộ giữa thiết bị.
-Tài khoản đăng ký, mật khẩu đã băm và phiên đăng nhập cũng được lưu cục bộ,
-nên vẫn còn sau khi tải lại trang trên cùng thiết bị/trình duyệt. Đây là xác thực
-demo, không thay thế dịch vụ xác thực an toàn cho sản phẩm thật. Có thể chuyển
-giữa vai trò Khách và Quản trị viên demo từ trang Hồ sơ để thử các luồng.
-
-Nếu cổng 8080 đang được ứng dụng khác sử dụng, đổi `--web-port 8081` và mở
-http://localhost:8081. Cấu hình Codespaces vẫn dùng cổng 8080.
-
-## Kiểm tra trước khi push
+## Kiểm tra và build
 
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
 flutter build web
-git status
 ```
-
-Không commit `node_modules/`, `.dart_tool/`, `build/` hoặc thông tin đăng nhập.
-Các thư mục sinh tự động đã được loại trừ trong `.gitignore`.
-
-## Collaborator và nộp bài
-
-Đã kiểm tra ngày 24/09/2026: `huanonana` là chủ repo; `lehiu1310` và
-`Longsokiuu` đều có quyền ghi (write). Chưa thấy tài khoản giảng viên trong
-danh sách collaborator đã chấp nhận; chưa kiểm tra được lời mời đang chờ.
-
-Chủ repo vào **Settings → Collaborators → Add people** để kiểm tra/mời
-`lethunguyen` **hoặc** `nglthu` (chọn đúng tài khoản theo hướng dẫn của lớp).
-Tài khoản `lehiu1310` không có quyền quản trị để thực hiện bước này.
-
-Nội dung phản hồi/nộp bài:
-
-> Đề tài: Xây dựng ứng dụng quản lý homestay — Huấn, Hiếu, Long.
->
-> Phạm Văn Huấn — 23010331; Nguyễn Hữu Lê Hiếu — 23010985;
-> Nguyễn Hải Long — 2301872.
->
-> Repo: https://github.com/huanonana/nhom_huan_hieu_long
-
-Chụp minh chứng từ phiên chạy thật: VS Code/Codespaces với thư mục
-`.devcontainer`, terminal chạy Flutter và trình duyệt hiển thị tên nhóm,
-MSSV trong hộp thoại thông tin nhóm. Ảnh mẫu của nhóm khác chỉ để tham khảo.
-Kiểm tra trạng thái nộp bài trên hệ thống lớp riêng; không suy ra đã nộp
-từ việc có mã nguồn trên GitHub.
 
 ## Tài liệu
 
-- Báo cáo đồ án Word/PDF: `output/report/Bao_cao_do_an_HHL_Stay.docx` and `.pdf`.
-  The report source and captured app screens are in `tool/generate_hhl_report.py`
-  and `docs/report_assets/`; regenerate with `python tool/generate_hhl_report.py`
-  after installing `python-docx` and Pillow.
-- [Flutter Web](https://docs.flutter.dev/platform-integration/web/setup)
-- [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
-- [Dev Container CLI](https://code.visualstudio.com/docs/devcontainers/devcontainer-cli)
+- [Hướng dẫn chạy thử và luồng demo](docs/chay-ban-thu.md)
+- [Đặc tả nghiệp vụ và phạm vi hiện tại](docs/dac-ta-app.md)
+- [Thiết kế giao diện](docs/thiet-ke-giao-dien.md)
+- [Nguồn ảnh homestay](docs/nguon-anh.md) và [nguồn ảnh địa danh](docs/nguon-anh-dia-danh.md)
+
+## Giới hạn bản demo
+
+Đây là ứng dụng demo học thuật, chưa dùng dịch vụ xác thực, cơ sở dữ liệu hoặc thanh toán tập trung. Số liệu doanh thu/chi tiêu được tính từ dữ liệu demo cục bộ, không đại diện giao dịch thật. Cần backend và phân quyền phía máy chủ trước khi triển khai công khai.
