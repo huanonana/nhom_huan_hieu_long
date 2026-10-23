@@ -32,6 +32,15 @@ flutter pub get
 flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8081
 ```
 
+Tài khoản demo được tạo tự động khi ứng dụng khởi động lần đầu:
+
+| Vai trò | Email | Mật khẩu |
+| --- | --- | --- |
+| Khách | `hhl-khach-demo-2026@example.com` | `HHLstayKhach2026!` |
+| Quản trị viên (vai trò Host trong app) | `hhl-admin-demo-2026@example.com` | `HHLstayAdmin2026!` |
+
+Đây là tài khoản học thuật lưu trên trình duyệt/thiết bị, không phải tài khoản máy chủ dùng chung. Dữ liệu của tài khoản nằm riêng theo origin và có thể được xóa trong cài đặt trình duyệt.
+
 1. Mở app; mặc định vào **Admin → Tổng quan quản trị**. Thêm/sửa homestay, phòng,
    duyệt đơn và mở lịch phòng từ thanh điều hướng.
 2. Để thử luồng khách, vào **Tài khoản → Khách đặt phòng**. Chọn
