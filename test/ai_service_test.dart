@@ -57,13 +57,12 @@ void main() {
       expect(request.url.host, 'generativelanguage.googleapis.com');
       expect(
         request.url.path,
-        contains('/v1beta/models/gemini-3.8-flash:generateContent'),
+        contains('/v1beta/models/gemini-3.6-flash:generateContent'),
       );
       expect(request.method, 'POST');
       expect(request.headers['x-goog-api-key'], 'test-key');
       final body = jsonDecode(request.body) as Map<String, dynamic>;
-      final generationConfig =
-          body['generationConfig'] as Map<String, dynamic>;
+      final generationConfig = body['generationConfig'] as Map<String, dynamic>;
       expect(generationConfig['maxOutputTokens'], 512);
       expect(
         (generationConfig['thinkingConfig'] as Map)['thinkingLevel'],

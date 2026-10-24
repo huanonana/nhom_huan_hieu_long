@@ -7,7 +7,7 @@ import 'package:nhom_huan_hieu/main.dart';
 
 void main() {
   testWidgets('staff profile can be reused in a linked shift', (tester) async {
-    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.physicalSize = const Size(393, 852);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -20,7 +20,11 @@ void main() {
     await tester.pumpAndSettle();
     container.read(routerProvider).go('/host/staff');
     await tester.pumpAndSettle();
-    expect(find.text('Hồ sơ nhân viên'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Thêm nhân viên'),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
 
     await tester.tap(find.text('Thêm nhân viên'));
     await tester.pumpAndSettle();
@@ -46,7 +50,9 @@ void main() {
     final shift = container.read(staffShiftsProvider).single;
     expect(shift.staffId, member.id);
     expect(shift.staffName, member.name);
-    expect(find.text('Đã xếp ca'), findsOneWidget);
+    expect(shift.role, 'Lễ tân');
+    expect(shift.startHour, 8);
+    expect(shift.endHour, 16);
 
     await tester.pumpWidget(const SizedBox());
     container.dispose();

@@ -123,8 +123,16 @@ class _AuthVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     final image = photosFor(adminMode ? 'dalat' : 'sea').first.asset;
     final showBenefits = title.startsWith('Tạo tài khoản');
+    final compactLoginHeight = MediaQuery.sizeOf(context).width < 360
+        ? 252.0
+        : 224.0;
     return Container(
-      height: compact ? (showBenefits ? 420 : 190) : (showBenefits ? 660 : 600),
+      // Keep the compact login/host-login hero tall enough for wrapped
+      // Vietnamese headings and descriptions on medium phones. The earlier
+      // 190 px card overflowed by about 30 px at 393 px viewport width.
+      height: compact
+          ? (showBenefits ? 420 : compactLoginHeight)
+          : (showBenefits ? 660 : 600),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: adminMode ? const Color(0xFF111827) : const Color(0xFF24205A),

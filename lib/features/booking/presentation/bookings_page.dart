@@ -425,7 +425,7 @@ class _BookingsPageState extends ConsumerState<BookingsPage> {
     final bookings = repo.bookings
         .where(
           (b) =>
-              (host ? b.hostId == 'host-demo' : b.guestId == guestId) &&
+              (host || b.guestId == guestId) &&
               (_filter == null || b.effectiveStatus(repo.now) == _filter) &&
               (query.isEmpty ||
                   '${b.guestName} ${b.id} ${b.roomName}'.toLowerCase().contains(

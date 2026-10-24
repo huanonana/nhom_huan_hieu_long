@@ -169,6 +169,24 @@ void main() {
       expect(repo.bookings.length, 1);
     },
   );
+  test('Different registered guests receive distinct booking identifiers', () {
+    Booking createFor(String uid) =>
+        DemoBookingRepository(clock: () => clock, seed: false).create(
+          roomId: 'pine-1',
+          guestId: uid,
+          guestName: 'Khách thử',
+          checkIn: DateTime.utc(2026, 9, 27),
+          checkOut: DateTime.utc(2026, 9, 29),
+          guests: 2,
+        );
+
+    final first = createFor('firebase-guest-a');
+    final second = createFor('firebase-guest-b');
+    repo.mergeCloudBookings([first, second]);
+
+    expect(first.id, isNot(second.id));
+    expect(repo.bookings, hasLength(2));
+  });
   test('Expiry frees dates and prevents approving the old request', () {
     final first = book(
       start: DateTime.utc(2026, 9, 27),

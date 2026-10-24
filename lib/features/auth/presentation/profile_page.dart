@@ -76,9 +76,7 @@ class ProfilePage extends ConsumerWidget {
     final repo = ref.watch(repositoryProvider);
     final bookings = repo.bookings;
     final guestBookings = bookings.where((b) => b.guestId == 'guest-demo');
-    final managedHomes = repo.homestays
-        .where((home) => home.hostId == 'host-demo')
-        .length;
+    final managedHomes = repo.homestays.length;
     final pendingBookings = bookings
         .where(
           (booking) =>

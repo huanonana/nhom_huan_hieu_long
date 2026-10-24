@@ -101,7 +101,7 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
         controller.saveHomestay(
           Homestay(
             id: widget.home?.id ?? id,
-            hostId: 'host-demo',
+            hostId: widget.home?.hostId ?? 'host-demo',
             name: values[0],
             city: values[1],
             address: values[2],

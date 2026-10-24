@@ -25,13 +25,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final repo = ref.watch(repositoryProvider);
     final day = _selected ?? vietnamToday(repo.now);
     final end = day.add(const Duration(days: 1));
-    final rooms = repo.rooms
-        .where(
-          (r) => repo.homestays.any(
-            (h) => h.id == r.homestayId && h.hostId == 'host-demo',
-          ),
-        )
-        .toList();
+    final rooms = repo.rooms.toList();
     final free = rooms.where((r) => repo.available(r, day, end)).length;
     return PageBody(
       children: [

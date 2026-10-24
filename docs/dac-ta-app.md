@@ -87,10 +87,11 @@ và https://firebase.google.com/docs/firestore/transaction-data-contention
 1. **Bản demo luồng chính — đã có.** Riverpod + go_router, model nghiệp vụ,
    repository, dữ liệu mẫu, khám phá/đặt/quản trị và kiểm thử ngày, sức chứa,
    trùng lịch, review, tài chính và trạng thái.
-2. **Firebase lớp — đã tích hợp.** Firebase Auth email/mật khẩu, hồ sơ người dùng,
-   Firestore document store và role-based Rules đã triển khai; web Firebase và APK
-   debug build thành công. Auth/profile smoke test trước đó đã qua; Rules Emulator
-   chưa chạy và chưa lặp lại app-level permission smoke sau lần siết Rules.
+2. **Firebase lớp — đã tích hợp một phần.** Firebase Auth email/mật khẩu, hồ sơ
+   người dùng, Firestore document store và role-based Rules đã triển khai; web
+   Firebase và APK debug build thành công. Rules Emulator có 6 nhóm test tự động,
+   chạy lại đạt ngày 24/10/2026. Auth/profile smoke test trước đó đã qua; chưa có
+   E2E đủ các luồng đặt phòng, host, tài chính và nhân viên sau lần siết Rules.
 3. **Hardening production — còn thiếu.** Rules lớp hiện tách quyền khách/quản lý,
    nhưng mô hình vẫn chỉ có một vai trò host, không có phân tách nhiều chủ sở hữu;
    thêm transaction đặt phòng, retry/offline queue, đồng bộ đa thiết bị, xác minh

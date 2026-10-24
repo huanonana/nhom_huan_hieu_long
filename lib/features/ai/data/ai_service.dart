@@ -11,7 +11,7 @@ class AiService {
   AiService({
     required this.apiKey,
     http.Client? client,
-    this.model = 'gemini-3.8-flash',
+    this.model = 'gemini-3.6-flash',
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null;
 

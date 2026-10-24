@@ -44,7 +44,8 @@ class FirebaseDocumentStore {
       _rooms.doc(value.id).set(value.toJson(), SetOptions(merge: true));
 
   Future<void> saveReview(StayReview value) => _reviews
-      .doc(value.bookingId)
+      // Keep the review document ID aligned with the checked-out booking rule.
+      .doc('${value.guestId}_${value.bookingId}')
       .set(value.toJson(), SetOptions(merge: true));
 
   Future<void> saveFinanceEntry(FinanceEntry value) =>
@@ -62,30 +63,58 @@ class FirebaseDocumentStore {
   Future<List<Homestay>> publicHomestays() async =>
       _readList(_homestays, (map) => Homestay.fromJson(map));
 
+  Stream<List<Homestay>> watchPublicHomestays() =>
+      _watchList(_homestays, (map) => Homestay.fromJson(map));
+
   Future<List<Room>> publicRooms() async =>
       _readList(_rooms, (map) => Room.fromJson(map));
+
+  Stream<List<Room>> watchPublicRooms() =>
+      _watchList(_rooms, (map) => Room.fromJson(map));
 
   Future<List<StayReview>> publicReviews() async =>
       _readList(_reviews, (map) => StayReview.fromJson(map));
 
+  Stream<List<StayReview>> watchPublicReviews() =>
+      _watchList(_reviews, (map) => StayReview.fromJson(map));
+
   Future<List<FinanceEntry>> allFinanceEntries() async =>
       _readList(_finance, (map) => FinanceEntry.fromJson(map));
+
+  Stream<List<FinanceEntry>> watchAllFinanceEntries() =>
+      _watchList(_finance, (map) => FinanceEntry.fromJson(map));
 
   Future<List<StaffMember>> allStaffMembers() async =>
       _readList(_staff, (map) => StaffMember.fromJson(map));
 
+  Stream<List<StaffMember>> watchAllStaffMembers() =>
+      _watchList(_staff, (map) => StaffMember.fromJson(map));
+
   Future<List<StaffShift>> allStaffShifts() async =>
       _readList(_shifts, (map) => StaffShift.fromJson(map));
+
+  Stream<List<StaffShift>> watchAllStaffShifts() =>
+      _watchList(_shifts, (map) => StaffShift.fromJson(map));
 
   Future<List<Booking>> bookingsForGuest(String uid) async {
     final result = await _bookings.where('guestId', isEqualTo: uid).get();
     return result.docs.map((doc) => Booking.fromJson(doc.data())).toList();
   }
 
+  Stream<List<Booking>> watchBookingsForGuest(String uid) => _bookings
+      .where('guestId', isEqualTo: uid)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map(_decodeBooking).toList());
+
   Future<List<Booking>> bookingsForHost(String uid) async {
     final result = await _bookings.where('hostId', isEqualTo: uid).get();
     return result.docs.map((doc) => Booking.fromJson(doc.data())).toList();
   }
+
+  Stream<List<Booking>> watchBookingsForHost(String uid) => _bookings
+      .where('hostId', isEqualTo: uid)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map(_decodeBooking).toList());
 
   /// Development-mode sync for the current small classroom dataset. The
   /// production version should query by tenant and paginate rather than fetch
@@ -93,6 +122,16 @@ class FirebaseDocumentStore {
   Future<List<Booking>> allBookingsForDemo() async {
     final result = await _bookings.get();
     return result.docs.map((doc) => Booking.fromJson(doc.data())).toList();
+  }
+
+  Stream<List<Booking>> watchAllBookingsForDemo() => _bookings.snapshots().map(
+    (snapshot) => snapshot.docs.map(_decodeBooking).toList(),
+  );
+
+  Booking _decodeBooking(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    data.putIfAbsent('id', () => doc.id);
+    return Booking.fromJson(data);
   }
 
   Future<List<T>> _readList<T>(
@@ -106,4 +145,15 @@ class FirebaseDocumentStore {
       return decode(data);
     }).toList();
   }
+
+  Stream<List<T>> _watchList<T>(
+    CollectionReference<Map<String, dynamic>> collection,
+    T Function(Map<String, dynamic>) decode,
+  ) => collection.snapshots().map(
+    (snapshot) => snapshot.docs.map((doc) {
+      final data = doc.data();
+      data.putIfAbsent('id', () => doc.id);
+      return decode(data);
+    }).toList(),
+  );
 }

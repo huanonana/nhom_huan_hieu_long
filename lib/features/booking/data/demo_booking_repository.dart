@@ -47,7 +47,12 @@ class DemoBookingRepository implements BookingRepository {
   /// Existing domain fixtures are retained when no cloud counterpart exists.
   void mergeCloudBookings(Iterable<Booking> cloudBookings) {
     for (final cloudBooking in cloudBookings) {
-      final index = _bookings.indexWhere((item) => item.id == cloudBooking.id);
+      // Booking numbers can restart on another device. Pair them with the
+      // guest UID so two HHL-0001 bookings never replace each other.
+      final index = _bookings.indexWhere(
+        (item) =>
+            item.id == cloudBooking.id && item.guestId == cloudBooking.guestId,
+      );
       if (index < 0) {
         _bookings.add(cloudBooking);
       } else {
@@ -767,8 +772,9 @@ class DemoBookingRepository implements BookingRepository {
   @override
   void saveHomestay(Homestay home, {required String actorId}) {
     final index = _homestays.indexWhere((h) => h.id == home.id);
-    if (actorId != 'host-demo' || home.hostId != actorId)
+    if (actorId.trim().isEmpty || home.hostId != actorId) {
       throw const BookingException('Không có quyền quản lý.');
+    }
     if (index >= 0) _owner(home.id, actorId);
     if ([
           home.id,
@@ -900,8 +906,12 @@ class DemoBookingRepository implements BookingRepository {
       );
     final home = homestays.singleWhere((h) => h.id == room.homestayId);
     // Synchronous in one isolate; this repository is for the local demo.
+    final sequence = (++_sequence).toString().padLeft(4, '0');
+    final bookingId = guestId == 'guest-demo'
+        ? 'HHL-$sequence'
+        : 'HHL-$sequence-${guestId.hashCode.toRadixString(16).padLeft(8, '0')}';
     final booking = Booking(
-      id: 'HHL-${(++_sequence).toString().padLeft(4, '0')}',
+      id: bookingId,
       roomId: room.id,
       homestayId: home.id,
       hostId: home.hostId,

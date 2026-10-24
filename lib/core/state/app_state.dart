@@ -82,10 +82,12 @@ class BookingController extends StateNotifier<int> {
     DemoRole role, {
     String? actorId,
   }) {
+    final booking = _booking(id);
     repository.transition(
       id,
       status,
-      actorId: actorId ?? (role == DemoRole.host ? 'host-demo' : 'guest-demo'),
+      actorId:
+          actorId ?? (role == DemoRole.host ? booking.hostId : booking.guestId),
     );
     _syncBooking(id);
     state++;
@@ -99,7 +101,7 @@ class BookingController extends StateNotifier<int> {
   }) {
     repository.recordPayment(
       bookingId,
-      actorId: 'host-demo',
+      actorId: _booking(bookingId).hostId,
       amount: amount,
       method: method,
       note: note,
@@ -113,19 +115,22 @@ class BookingController extends StateNotifier<int> {
     if (booking == null || booking.checkInCode != code.trim()) {
       throw const BookingException('Mã nhận phòng không khớp đơn này.');
     }
-    repository.transition(id, BookingStatus.checkedIn, actorId: 'host-demo');
+    repository.transition(id, BookingStatus.checkedIn, actorId: booking.hostId);
     _syncBooking(id);
     state++;
   }
 
   void saveHomestay(Homestay home) {
-    repository.saveHomestay(home, actorId: 'host-demo');
+    final existing = repository.homestays
+        .where((item) => item.id == home.id)
+        .firstOrNull;
+    repository.saveHomestay(home, actorId: existing?.hostId ?? home.hostId);
     _sync(() => documentStore?.saveHomestay(home));
     state++;
   }
 
   void saveRoom(Room room) {
-    repository.saveRoom(room, actorId: 'host-demo');
+    repository.saveRoom(room, actorId: _homestay(room.homestayId).hostId);
     _sync(() => documentStore?.saveRoom(room));
     state++;
   }
@@ -135,19 +140,24 @@ class BookingController extends StateNotifier<int> {
         .where((item) => item.id == roomId)
         .firstOrNull;
     if (room == null) throw const BookingException('Không tìm thấy phòng.');
-    repository.saveRoom(room.withHousekeeping(status), actorId: 'host-demo');
+    repository.saveRoom(
+      room.withHousekeeping(status),
+      actorId: _homestay(room.homestayId).hostId,
+    );
     _sync(() => documentStore?.saveRoom(room.withHousekeeping(status)));
     state++;
   }
 
   void deleteRoom(String id) {
-    repository.deleteRoom(id, actorId: 'host-demo');
+    final room = repository.rooms.where((item) => item.id == id).firstOrNull;
+    if (room == null) throw const BookingException('Không tìm thấy phòng.');
+    repository.deleteRoom(id, actorId: _homestay(room.homestayId).hostId);
     _sync(() => documentStore?.deleteRoom(id));
     state++;
   }
 
   void deleteHomestay(String id) {
-    repository.deleteHomestay(id, actorId: 'host-demo');
+    repository.deleteHomestay(id, actorId: _homestay(id).hostId);
     _sync(() => documentStore?.deleteHomestay(id));
     state++;
   }
@@ -168,6 +178,14 @@ class BookingController extends StateNotifier<int> {
     state++;
     return review;
   }
+
+  Booking _booking(String id) =>
+      repository.bookings.where((item) => item.id == id).firstOrNull ??
+      (throw const BookingException('Không tìm thấy đơn.'));
+
+  Homestay _homestay(String id) =>
+      repository.homestays.where((item) => item.id == id).firstOrNull ??
+      (throw const BookingException('Không tìm thấy homestay.'));
 
   void _syncBooking(String id) {
     final booking = repository.bookings

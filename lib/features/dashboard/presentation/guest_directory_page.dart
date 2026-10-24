@@ -48,9 +48,7 @@ class _GuestDirectoryPageState extends ConsumerState<GuestDirectoryPage> {
     final repository = ref.watch(repositoryProvider);
     final authRepository = ref.watch(authRepositoryProvider);
     final staysByGuest = <String, List<Booking>>{};
-    for (final booking in repository.bookings.where(
-      (item) => item.hostId == 'host-demo',
-    )) {
+    for (final booking in repository.bookings) {
       staysByGuest.putIfAbsent(booking.guestId, () => []).add(booking);
     }
     final query = _search.text.trim().toLowerCase();

@@ -8,7 +8,7 @@
 - Tìm theo tên/khu vực; lọc thành phố, tiện nghi, sức chứa, giá tối đa và ngày ở.
 - Xem homestay/phòng, chọn ngày, nhập tên khách và ghi chú, xem giá trước khi gửi.
 - Kiểm tra ngày, số khách, 1–30 đêm, không trùng khoảng ở, giữ đơn chờ 24 giờ.
-- Admin demo xem và xử lý các đơn của hệ thống; Khách xem đơn của mình và hủy khi còn chờ. Admin duyệt/từ chối,
+- Admin demo xem và xử lý tất cả đơn trong workspace dùng chung, kể cả dữ liệu lưu với owner ID cũ; Khách xem đơn của mình và hủy khi còn chờ. Admin duyệt/từ chối,
   xác minh nội dung QR của khách để nhận phòng và trả phòng; chặn nhận sai ngày, mã sai và chuyển sai trạng thái.
 - Yêu thích lưu trên máy; trang Yêu thích có lưới riêng và trạng thái rỗng kèm nút quay lại khám phá.
 - Dashboard quản trị có thẻ tổng giá trị đơn hoàn tất theo tháng, biểu đồ 6 tháng,
@@ -43,8 +43,8 @@ flutter run -d <device-id> --dart-define=HHL_USE_FIREBASE=true
 Android/Web Firebase được cấu hình cho project lớp. File [Rules](../firestore.rules)
 cho phép đọc công khai danh mục và đánh giá, khách chỉ đọc/hủy đơn của chính
 mình, còn số liệu tài chính/nhân viên và thao tác quản lý yêu cầu vai trò host.
-Rules hiện đã triển khai trên Firebase project ngày 24/10/2026. Emulator test
-chưa chạy được trên máy hiện tại do thiếu Java, nên chỉ dùng dữ liệu giả. Để cấp tài khoản quản trị cho demo
+Rules có sáu nhóm kiểm thử tự động trên Firestore Emulator; ca đánh giá sau trả
+phòng kiểm tra luôn ID review trùng với document mapper. Để cấp tài khoản quản trị cho demo
 Firebase: đăng ký tài khoản qua app với vai trò Khách, lấy UID trong Firebase
 Authentication, rồi trong Firestore Console đặt `users/{UID}.role` thành
 `host`. Vai trò không được cấp từ màn hình đăng ký. Hai tài khoản demo trong
@@ -98,17 +98,11 @@ thay thế phân quyền máy chủ. Firebase mode không cho tài khoản tự 
 
 Xem [đặc tả bổ sung](dac-ta-app.md) về quy tắc nghiệp vụ và transaction Firebase.
 Android đã chuyển sang plugins DSL. Ngày 24/10/2026, `flutter analyze` sạch,
-98/98 unit/widget tests qua, `flutter analyze` sạch, Web local/Firebase build và
-Firebase debug APK build thành công; local release APK đã build trước đó. Firebase
-debug APK trước đợt siết Rules đã mở landing và Explore trên Medium Phone; ở lần
-kiểm tra mới nhất emulator đã ngắt kết nối nên chưa kiểm tra lại runtime sau Rules.
-Local release APK cũng render giao diện app. Firebase release
-APK chưa tạo xong do máy gần cạn RAM trong bước R8. Khi thiếu RAM, emulator có
-thể hiện cảnh báo System UI/Phone service không phản hồi dù HHL Stay vẫn render;
-đây là vấn đề của môi trường Android ảo trong lần kiểm tra này, không phải crash
-Flutter của app. iOS chưa kiểm tra.
+100/100 unit/widget tests qua; Rules Emulator 6/6 nhóm qua. Web local và APK release local đã build lại sau
+sửa lỗi responsive cho hộp chi phí và form xếp ca. Gemini đã trả lời câu hỏi thử
+trên localhost. Bản local release đã được mở trên Medium Phone; tài khoản khách và đơn còn sau force-stop/restart, admin thấy và duyệt đơn, Finance và Buồng phòng mở được. Đây là dữ liệu demo local; Firebase E2E, Gemini trên Android và thanh toán thật chưa được xác nhận. Firebase release APK chưa được kiểm tra trên thiết bị trong lượt này. iOS chưa kiểm tra.
 
-APK kiểm thử mới nằm trong `output/builds/`: `hhl_stay_medium_phone_local_debug.apk`,
+APK kiểm thử nằm trong `output/builds/`: `hhl_stay_medium_phone_local_debug.apk`,
 `hhl_stay_medium_phone_firebase_debug.apk` và `hhl_stay_medium_phone_local_release.apk`.
 Local release chưa ký để phát hành store. Xem [kết quả kiểm thử](kiem-thu-ban-dau.md).
 

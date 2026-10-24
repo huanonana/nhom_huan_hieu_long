@@ -16,13 +16,7 @@ class HousekeepingPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(changesProvider);
     final repository = ref.watch(repositoryProvider);
-    final rooms = repository.rooms
-        .where(
-          (room) => repository.homestays.any(
-            (home) => home.hostId == 'host-demo' && home.id == room.homestayId,
-          ),
-        )
-        .toList();
+    final rooms = repository.rooms.toList();
     final needsCleaning = rooms
         .where(
           (room) =>

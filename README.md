@@ -23,7 +23,7 @@ flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
 
 Ở chế độ Firebase, khách đăng ký/đăng nhập bằng Firebase Authentication, hồ sơ tài khoản được ghi vào `users`, và dữ liệu đơn đặt, homestay, phòng, đánh giá, tài chính, nhân viên, ca làm được tải/gộp khi khởi động rồi đồng bộ theo quyền tài khoản. Tài khoản quản lý phải được cấp riêng trong Firebase Console; tài khoản không thể tự nâng cấp quyền. Chế độ local vẫn dùng SharedPreferences và hai tài khoản bên dưới. Không chuyển dữ liệu local sang Firebase tự động.
 
-Rules trong [firestore.rules](firestore.rules) đã triển khai lên project lớp ngày 24/10/2026: đọc công khai danh mục/đánh giá, khách chỉ đọc đơn của mình và chỉ hủy đơn hợp lệ; hồ sơ không thể tự đổi vai trò; các dữ liệu quản trị chỉ dành cho tài khoản host. Có thể cập nhật bằng `firebase deploy --only firestore:rules`. Đây là cấu hình cho đồ án một chủ cơ sở; Rules Emulator chưa được chạy trên máy hiện tại, nên chưa dùng với dữ liệu khách thật. Firebase client config chỉ trỏ tới project, không chứa service-account credential.
+Rules trong [firestore.rules](firestore.rules) đã triển khai lên project lớp ngày 24/10/2026: đọc công khai danh mục/đánh giá, khách chỉ đọc đơn của mình và chỉ hủy đơn hợp lệ; hồ sơ không thể tự đổi vai trò; dữ liệu quản trị chỉ dành cho tài khoản host. Sáu nhóm Rules Emulator đã chạy đạt ngày 24/10/2026; chạy lại bằng lệnh trong [docs/firebase-mode.md](docs/firebase-mode.md). Đây là cấu hình đồ án một chủ cơ sở, chưa phải cấu hình production hoặc kiểm thử Firebase E2E. Firebase client config trỏ tới project và không chứa service-account credential.
 
 ## Tài khoản demo local
 
@@ -35,6 +35,10 @@ App tự tạo hai tài khoản demo trên thiết bị khi khởi động lần
 | Quản trị viên | `hhl-admin-demo-2026@example.com` | `HHLstayAdmin2026!` |
 
 Đây là tài khoản phục vụ trình diễn ở chế độ local; chúng không phải tài khoản Firebase. Đăng ký, phiên đăng nhập, homestay, phòng, đơn đặt, đánh giá và yêu thích local lưu trên thiết bị bằng SharedPreferences.
+
+## Demo đồ án
+
+Video demo dài 01:14, nằm trong giới hạn 8 phút của đề: [HHL Stay demo](docs/demo-video/HHL_Stay_demo.mp4).
 
 ## Chức năng chính
 

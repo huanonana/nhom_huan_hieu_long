@@ -26,9 +26,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
     ref.watch(changesProvider);
     final repo = ref.watch(repositoryProvider);
     final entries = ref.watch(financeEntriesProvider);
-    final hostBookings = repo.bookings
-        .where((booking) => booking.hostId == 'host-demo')
-        .toList();
+    final hostBookings = repo.bookings.toList();
     final bookings =
         hostBookings
             .where(
@@ -88,16 +86,7 @@ class _FinancePageState extends ConsumerState<FinancePage> {
         .where((entry) => entry.status == FinanceEntryStatus.pending)
         .fold<int>(0, (sum, entry) => sum + entry.amount);
     final roomNights = roomPerformance.roomNights;
-    final roomCount = repo.rooms
-        .where(
-          (room) =>
-              room.active &&
-              repo.homestays.any(
-                (home) =>
-                    home.hostId == 'host-demo' && home.id == room.homestayId,
-              ),
-        )
-        .length;
+    final roomCount = repo.rooms.where((room) => room.active).length;
     final availableRoomNights =
         roomCount * DateUtils.getDaysInMonth(_month.year, _month.month);
     final summary = FinanceSummary(
@@ -136,6 +125,27 @@ class _FinancePageState extends ConsumerState<FinancePage> {
         )
         .toList();
     final width = MediaQuery.sizeOf(context).width;
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tài chính',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'Theo dõi doanh thu, chi phí và hiệu quả khai thác phòng.',
+          style: TextStyle(color: muted),
+        ),
+      ],
+    );
+    final addExpenseButton = FilledButton.icon(
+      onPressed: () => _addExpense(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Thêm khoản chi'),
+    );
     final contentWidth = width >= 900
         ? (width - 256).clamp(0.0, 1260.0)
         : width;
@@ -155,32 +165,19 @@ class _FinancePageState extends ConsumerState<FinancePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tài chính',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 5),
-                          const Text(
-                            'Theo dõi doanh thu, chi phí và hiệu quả khai thác phòng.',
-                            style: TextStyle(color: muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () => _addExpense(context),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Thêm khoản chi'),
-                    ),
-                  ],
-                ),
+                if (width < 600) ...[
+                  titleBlock,
+                  const SizedBox(height: 14),
+                  SizedBox(width: double.infinity, child: addExpenseButton),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: titleBlock),
+                      const SizedBox(width: 20),
+                      addExpenseButton,
+                    ],
+                  ),
                 const SizedBox(height: 20),
                 Card(
                   child: Padding(
@@ -448,67 +445,71 @@ class _FinancePageState extends ConsumerState<FinancePage> {
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Ghi nhận chi phí'),
           content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: title,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên khoản chi',
-                    hintText: 'Ví dụ: Vệ sinh phòng',
+            width: (MediaQuery.sizeOf(context).width - 128).clamp(180.0, 420.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: title,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên khoản chi',
+                      hintText: 'Ví dụ: Vệ sinh phòng',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amount,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Số tiền (₫)',
-                    hintText: '250000',
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Số tiền (₫)',
+                      hintText: '250000',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: const InputDecoration(labelText: 'Danh mục'),
-                  items: categories
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) => setDialogState(
-                    () => category = value ?? categories.first,
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Danh mục'),
+                    items: categories
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
+                    onChanged: (value) => setDialogState(
+                      () => category = value ?? categories.first,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<FinanceEntryStatus>(
-                  initialValue: status,
-                  decoration: const InputDecoration(
-                    labelText: 'Tình trạng thanh toán',
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<FinanceEntryStatus>(
+                    isExpanded: true,
+                    initialValue: status,
+                    decoration: const InputDecoration(
+                      labelText: 'Tình trạng thanh toán',
+                    ),
+                    items: FinanceEntryStatus.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => setDialogState(
+                      () => status = value ?? FinanceEntryStatus.paid,
+                    ),
                   ),
-                  items: FinanceEntryStatus.values
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: value,
-                          child: Text(value.label),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) => setDialogState(
-                    () => status = value ?? FinanceEntryStatus.paid,
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: note,
+                    decoration: const InputDecoration(
+                      labelText: 'Ghi chú (không bắt buộc)',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: note,
-                  decoration: const InputDecoration(
-                    labelText: 'Ghi chú (không bắt buộc)',
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [

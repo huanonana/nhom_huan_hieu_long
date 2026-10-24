@@ -417,6 +417,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<StaffMember>(
+                    isExpanded: true,
                     initialValue: selectedStaff,
                     decoration: const InputDecoration(labelText: 'Nhân viên'),
                     items: [
@@ -449,6 +450,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<int>(
+                          isExpanded: true,
                           initialValue: startHour,
                           decoration: const InputDecoration(
                             labelText: 'Bắt đầu',
@@ -467,6 +469,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<int>(
+                          isExpanded: true,
                           initialValue: endHour,
                           decoration: const InputDecoration(
                             labelText: 'Kết thúc',

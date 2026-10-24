@@ -25,12 +25,11 @@ class HostPage extends ConsumerWidget {
     final repo = ref.watch(repositoryProvider);
     final manager = ref.watch(currentUserProvider).valueOrNull;
     final now = vietnamToday(repo.now);
-    final bookings = repo.bookings
-        .where((b) => b.hostId == 'host-demo')
-        .toList();
-    final homestays = repo.homestays
-        .where((home) => home.hostId == 'host-demo')
-        .toList();
+    // This classroom app has one management workspace. Include every record
+    // in the shared repository so legacy/demo owner IDs cannot hide a guest
+    // booking from the administrator.
+    final bookings = repo.bookings.toList();
+    final homestays = repo.homestays.toList();
     final pending = bookings
         .where((b) => b.effectiveStatus(repo.now) == BookingStatus.pending)
         .length;
@@ -59,13 +58,7 @@ class HostPage extends ConsumerWidget {
             .fold<int>(0, (sum, b) => sum + b.total),
       );
     }
-    final rooms = repo.rooms
-        .where(
-          (r) => repo.homestays.any(
-            (h) => h.id == r.homestayId && h.hostId == 'host-demo',
-          ),
-        )
-        .toList();
+    final rooms = repo.rooms.toList();
     final activeRooms = rooms.where((room) => room.active).length;
     final roomsUnderMaintenance = rooms.length - activeRooms;
     final todayArrivals = bookings

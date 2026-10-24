@@ -21,6 +21,7 @@ BUILD_DIR = PROJECT / "build" / "web"
 APK_FILE = PROJECT / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
 LOG_DIR = PROJECT / ".tmp"
 LOG_FILE = LOG_DIR / "gemini_build.log"
+WEB_SERVER_LOG_FILE = LOG_DIR / "hhl_web_server.log"
 SETUP_PORT = 8099
 APP_PORT = 8083
 
@@ -44,7 +45,7 @@ button{margin-top:14px;background:#5145e8;border:0;border-radius:12px;color:whit
 <script>
 const form=document.querySelector('#form'), keyInput=document.querySelector('#key'), button=document.querySelector('#go'), statusBox=document.querySelector('#status');
 form.addEventListener('submit',async event=>{event.preventDefault();const key=keyInput.value.trim();button.disabled=true;statusBox.textContent='Đang build, vui lòng đợi...';
- try{const response=await fetch('/build',{method:'POST',headers:{'Content-Type':'application/json','X-HHL-Local-Setup':'1'},body:JSON.stringify({apiKey:key})});const result=await response.json();statusBox.textContent=result.message;if(response.ok){keyInput.value='';}else{button.disabled=false;}}
+ try{const response=await fetch('/build',{method:'POST',headers:{'Content-Type':'application/json','X-HHL-Local-Setup':'1'},body:JSON.stringify({apiKey:key})});const result=await response.json();statusBox.textContent=result.message;if(response.ok){keyInput.value='';}button.disabled=false;}
  catch(_){statusBox.textContent='Không kết nối được tiện ích build trên máy này. Key vẫn được giữ trong ô để thử lại.';button.disabled=false;}});
 </script></html>"""
 
@@ -111,7 +112,11 @@ $listeners = Get-NetTCPConnection -LocalPort 8083 -State Listen -ErrorAction Sil
 foreach ($listener in $listeners) {
   $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction SilentlyContinue
   $isFlutterWeb = $p -and $p.CommandLine -match 'flutter_tools\.snapshot.*run.*web-port 8083'
-  $isHhlStaticServer = $p -and $p.Name -match '^python(w)?\.exe$' -and $p.CommandLine -match '-m http\.server 8083' -and $p.CommandLine.Contains($expectedBuild)
+$servesExpectedBuild = $p -and (
+  $p.CommandLine.Contains($expectedBuild) -or
+  $p.CommandLine -match '--directory\s+build[\\/]web(?:\s|$)'
+)
+$isHhlStaticServer = $p -and $p.Name -match '^python(w)?\.exe$' -and $p.CommandLine -match '-m http\.server 8083' -and $servesExpectedBuild
   if ($isFlutterWeb -or $isHhlStaticServer) { Stop-Process -Id $p.ProcessId -Force }
 }
 """.replace("__EXPECTED_BUILD__", build_dir)
@@ -126,7 +131,7 @@ foreach ($listener in $listeners) {
 
 
 def start_static_server() -> None:
-    log = open(LOG_FILE, "ab")
+    log = open(WEB_SERVER_LOG_FILE, "ab")
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
     subprocess.Popen(
         [sys.executable, "-m", "http.server", str(APP_PORT), "--bind", "127.0.0.1", "--directory", str(BUILD_DIR)],
