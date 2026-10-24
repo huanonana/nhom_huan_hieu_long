@@ -84,20 +84,23 @@ và https://firebase.google.com/docs/firestore/transaction-data-contention
 
 ## Giai đoạn và tiêu chí hoàn thành
 
-1. **Đang làm: bản thử luồng chính.** Riverpod + go_router, model nghiệp vụ,
-   repository tách UI; dữ liệu mẫu; tìm/lọc, chi tiết, đặt và quản lý đơn;
-   kiểm thử ngày, sức chứa, trùng lịch và chuyển trạng thái.
-2. **Firebase thật.** Cấu hình project, Auth, rules, Functions/transactions,
-   emulator tests, phân quyền, CRUD homestay/phòng và lưu ảnh.
-3. **Nghiệp vụ hoàn chỉnh.** Lịch phòng/bảo trì, duyệt, yêu cầu hủy, thu tiền,
-   QR thật, review/favorite đồng bộ.
-4. **Hoàn thiện đồ án.** Dashboard, PDF, FCM, Admin, accessibility, ảnh minh chứng,
-   test Android và báo cáo.
+1. **Bản demo luồng chính — đã có.** Riverpod + go_router, model nghiệp vụ,
+   repository, dữ liệu mẫu, khám phá/đặt/quản trị và kiểm thử ngày, sức chứa,
+   trùng lịch, review, tài chính và trạng thái.
+2. **Firebase lớp — đã tích hợp.** Firebase Auth email/mật khẩu, hồ sơ người dùng,
+   Firestore document store và Rules demo; Android/Web build thành công, Auth/profile
+   smoke test và Medium Phone startup/Explore đã qua.
+3. **Hardening production — còn thiếu.** Thay rules rộng bằng phân quyền theo UID,
+   role và chủ sở hữu; thêm transaction đặt phòng, retry/offline queue, đồng bộ đa
+   thiết bị, xác minh ảnh và kiểm thử emulator/concurrency.
+4. **Dịch vụ thật — ngoài phạm vi demo.** Thanh toán/đối soát, FCM, QR ký phía server,
+   bản đồ và quy trình kiểm duyệt homestay.
 
 ## Giới hạn bản thử hiện tại
 
-Dữ liệu demo được lưu trên thiết bị, tải lại cùng địa chỉ vẫn còn dữ liệu; không có tài khoản thật,
-không lưu mật khẩu. Nút chuyển Guest/Host chỉ để thử luồng trên một máy,
-không phải phân quyền bảo mật. QR demo và CRUD danh mục cục bộ đã triển khai;
-Firebase, Admin, PDF, FCM và tiền thực thu chưa triển khai. Không công bố bản thử này là hệ thống đặt phòng thật.
+Local mode lưu dữ liệu demo trên thiết bị. Firebase mode dùng Firebase Authentication
+và Firestore cho các luồng được tích hợp; các Rules hiện áp dụng cho project lớp,
+đọc công khai và cho mọi tài khoản đăng nhập ghi. Không dùng dữ liệu thật hay coi
+role phía client là bảo mật. QR vẫn là demo; thanh toán/đối soát và FCM chưa có.
+Không công bố bản thử này là hệ thống đặt phòng production.
 Android đã nâng cấu hình Gradle và build APK debug; còn cần thử trên thiết bị.

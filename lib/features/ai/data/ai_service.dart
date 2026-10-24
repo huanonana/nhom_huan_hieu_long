@@ -11,7 +11,7 @@ class AiService {
   AiService({
     required this.apiKey,
     http.Client? client,
-    this.model = 'gemini-3.5-flash-lite',
+    this.model = 'gemini-3.8-flash',
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null;
 
@@ -33,6 +33,8 @@ class AiService {
       'Model Gemini hiện không khả dụng. Hãy cập nhật cấu hình AI.';
   static const String serviceBusyMessage =
       'Gemini đang bận. Hãy thử lại sau ít phút.';
+  static const String timeoutMessage =
+      'Gemini phản hồi quá lâu. Hãy thử lại khi mạng ổn định hơn.';
   static const String _endpoint = 'generativelanguage.googleapis.com';
 
   final String apiKey;
@@ -55,6 +57,7 @@ class AiService {
         quotaExceededMessage,
         modelUnavailableMessage,
         serviceBusyMessage,
+        timeoutMessage,
       }.contains(message) ||
       message.startsWith('Gemini từ chối yêu cầu (403):');
 
@@ -172,7 +175,10 @@ class AiService {
                 ],
               },
             'contents': contents,
-            'generationConfig': {'maxOutputTokens': 700},
+            'generationConfig': {
+              'maxOutputTokens': 512,
+              'thinkingConfig': {'thinkingLevel': 'LOW'},
+            },
           }),
         )
         .timeout(const Duration(seconds: 30));
@@ -198,9 +204,7 @@ class AiService {
 
   static String _messageFor(Object error) {
     if (error is _GeminiRequestFailure) return error.message;
-    if (error is TimeoutException) {
-      return 'Gemini phản hồi quá lâu. Hãy thử lại khi mạng ổn định hơn.';
-    }
+    if (error is TimeoutException) return timeoutMessage;
     return friendlyErrorMessage;
   }
 

@@ -493,6 +493,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                             width: double.infinity,
                             height: 195,
                             fit: BoxFit.cover,
+                            cacheWidth: 1200,
                           ),
                         ),
                       ),

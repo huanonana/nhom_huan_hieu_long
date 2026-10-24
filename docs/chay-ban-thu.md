@@ -29,8 +29,19 @@ Chạy tại thư mục gốc repo bằng Flutter 3.35.2:
 
 ```bash
 flutter pub get
-flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8081
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8083
 ```
+
+Local mode là mặc định. Để đăng ký/đăng nhập Firebase và dùng Firestore của project lớp, chạy:
+
+```bash
+flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
+flutter run -d emulator-5556 --dart-define=HHL_USE_FIREBASE=true
+```
+
+Android/Web Firebase được cấu hình cho project lớp. File [Rules](../firestore.rules)
+đã triển khai cho demo ngày 24/10/2026; đây là quyền đọc công khai/ghi cho mọi
+tài khoản đã đăng nhập, chỉ dùng dữ liệu giả.
 
 Tài khoản demo được tạo tự động khi ứng dụng khởi động lần đầu:
 
@@ -41,13 +52,10 @@ Tài khoản demo được tạo tự động khi ứng dụng khởi động l�
 
 Đây là tài khoản học thuật lưu trên trình duyệt/thiết bị, không phải tài khoản máy chủ dùng chung. Dữ liệu của tài khoản nằm riêng theo origin và có thể được xóa trong cài đặt trình duyệt.
 
-1. Mở app; mặc định vào **Admin → Tổng quan quản trị**. Thêm/sửa homestay, phòng,
-   duyệt đơn và mở lịch phòng từ thanh điều hướng.
-2. Để thử luồng khách, vào **Tài khoản → Khách đặt phòng**. Chọn
-   **Nhà Bên Đồi → Xem phòng**, chọn ngày, nhập tên và gửi yêu cầu.
-3. Chuyển về **Tài khoản → Quản trị viên → Quản lý** rồi vào **Đơn đặt**,
-   tìm đơn và chọn **Duyệt đơn**.
-4. Chuyển lại **Khách đặt phòng → Đơn đặt** để thấy trạng thái và QR. Sao chép nội dung mã; chuyển vai trò Admin, vào **Đơn đặt → Xác minh mã & nhận phòng** và dán mã. Khi trả phòng xong, khách có thể đánh giá.
+1. Mở app ở local mode. Đăng nhập bằng tài khoản quản trị trong bảng để vào **Tổng quan quản trị**; đăng xuất trước khi chuyển sang tài khoản khách. Không dựa vào nút đổi vai trò để thay cho đăng nhập.
+2. Đăng nhập bằng tài khoản khách. Chọn **Nhà Bên Đồi → Xem phòng**, chọn ngày, số khách, nhập thông tin cần thiết và gửi yêu cầu.
+3. Đăng xuất khách, đăng nhập quản trị rồi vào **Đơn đặt**. Tìm đơn vừa tạo, xem chi tiết và chọn **Duyệt đơn**.
+4. Đăng xuất quản trị rồi đăng nhập lại bằng khách để xem trạng thái và QR. Sao chép nội dung mã; đăng nhập quản trị, vào **Đơn đặt → Xác minh mã & nhận phòng** và dán mã. Khi trả phòng xong, khách có thể đánh giá.
 5. Thử đặt cùng phòng/cùng ngày: ứng dụng báo không còn trống.
 6. Muốn thử nhận/trả phòng, đặt ngày nhận là hôm nay. Đơn đã xác nhận
    chỉ được nhận trong khoảng lưu trú, không nhận trước ngày và không nhận từ ngày trả.
@@ -56,22 +64,43 @@ Phòng thông xanh có sẵn một đơn mẫu từ ngày hiện tại +2 đến
 lọc phòng trống. Bộ đếm thời hạn được cập nhật mỗi phút và kiểm tra lại khi thao tác.
 
 7. Vào **Quản lý → Tổng quan quản trị**, thêm homestay rồi thêm phòng. Homestay chỉ xuất hiện ở Khám phá khi có phòng đang mở phù hợp bộ lọc.
-8. Mở menu thao tác bên phòng để sửa giá, sức chứa hoặc bảo trì. Tải lại app; app trở về Admin và dữ liệu demo vẫn được giữ trên máy.
+8. Mở menu thao tác bên phòng để sửa giá, sức chứa hoặc bảo trì. Tải lại app; đăng nhập lại để xác nhận dữ liệu demo vẫn được giữ trên máy.
+
+## Kịch bản demo dưới 8 phút
+
+- **0:00–0:40 — Giới thiệu:** nêu đây là prototype Flutter cho khách đặt homestay và quản trị vận hành; dữ liệu địa điểm/giá là minh họa.
+- **0:40–1:30 — Khám phá:** tìm một điểm đến, dùng bộ lọc, mở homestay, xem ảnh, tiện nghi, phòng và giá.
+- **1:30–2:40 — Đặt phòng:** đăng nhập bằng tài khoản khách, chọn ngày/số khách, nhập mã `HHL10`, kiểm tra mức giảm thành viên và mã, xác nhận gửi đơn.
+- **2:40–3:20 — Lịch sử khách:** mở **Đơn đặt**, cho thấy trạng thái chờ, giá và chi tiết đơn.
+- **3:20–4:20 — Duyệt ở quản trị:** đăng xuất khách, đăng nhập quản trị, mở **Đơn đặt**, duyệt đơn vừa gửi và chỉ ra lịch phòng liên quan.
+- **4:20–5:20 — Tài chính và vận hành:** xem dashboard/Finance, doanh thu theo kỳ, khoản thu chi và lịch bảo trì; nói rõ đây là số liệu demo, không phải tiền thực thu.
+- **5:20–6:00 — Chốt:** nêu kiểm thử/build đã chạy, giới hạn local/Firebase, không có thanh toán thật và rules Firebase hiện chỉ dùng trong demo.
+
+Kịch bản là lời dẫn; trước khi quay, đăng nhập thử cả hai tài khoản trên cùng trình duyệt/origin và kiểm tra dữ liệu đơn đã đồng bộ trong phiên local. Link video nộp bài phải là link mà giảng viên mở được, không dùng URL localhost.
 
 ## Phần chưa triển khai
 
-Chưa có Firebase/Auth thật, dữ liệu máy chủ/đa thiết bị, phân quyền Admin phía máy chủ,
-thanh toán/tiền thực thu, PDF, FCM, ảnh xác thực của homestay và bản đồ thật.
+Firebase Auth và Firestore có trong chế độ bật riêng; danh mục/booking/finance/staff
+được đọc hoặc ghi theo các luồng tích hợp, nhưng chưa có đồng bộ đa thiết bị đầy đủ,
+retry queue, xử lý xung đột hay phân quyền theo chủ sở hữu.
+Chưa có thanh toán/tiền thực thu, FCM, ảnh xác thực của homestay và bản đồ thật.
 Mã QR hiện là mã demo tạo từ ID đơn, chưa có token ngẫu nhiên, máy quét tích hợp hay xác minh qua máy chủ.
 Không nhập dữ liệu nhạy cảm vào bản thử. Tải lại cùng trình duyệt/địa chỉ sẽ đọc dữ liệu đã lưu; xóa dữ liệu trình duyệt hoặc gỡ app có thể làm mất dữ liệu demo. Chỉ thử trên một tab tại một thời điểm, chưa hỗ trợ đồng bộ nhiều tab.
 Chuyển vai trò chỉ là công cụ thử nghiệm, không thay thế Security Rules.
 
 Xem [đặc tả bổ sung](dac-ta-app.md) về quy tắc nghiệp vụ và transaction Firebase.
-Android đã chuyển từ Gradle/Flutter apply-script cũ sang plugins DSL và build
-APK debug thành công. Chưa cài/chạy thiết bị; iOS chưa kiểm tra.
+Android đã chuyển sang plugins DSL. Ngày 24/10/2026, `flutter analyze` sạch,
+96/96 unit/widget tests qua, Web local build thành công; local/Firebase debug APK
+và local release APK đều build được. Firebase debug APK đã mở landing và Explore
+trên Medium Phone; local release APK cũng render giao diện app. Firebase release
+APK chưa tạo xong do máy gần cạn RAM trong bước R8. Khi thiếu RAM, emulator có
+thể hiện cảnh báo System UI/Phone service không phản hồi dù HHL Stay vẫn render;
+đây là vấn đề của môi trường Android ảo trong lần kiểm tra này, không phải crash
+Flutter của app. iOS chưa kiểm tra.
 
-APK: `build/app/outputs/flutter-apk/app-debug.apk`. Đây là bản debug để thử,
-chưa phải bản ký phát hành. Xem [kết quả kiểm thử](kiem-thu-ban-dau.md).
+APK kiểm thử mới nằm trong `output/builds/`: `hhl_stay_medium_phone_local_debug.apk`,
+`hhl_stay_medium_phone_firebase_debug.apk` và `hhl_stay_medium_phone_local_release.apk`.
+Local release chưa ký để phát hành store. Xem [kết quả kiểm thử](kiem-thu-ban-dau.md).
 
 ## Kiểm thử
 

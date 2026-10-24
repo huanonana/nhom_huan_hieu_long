@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../state/app_state.dart';
 import '../state/demo_storage.dart';
+import '../firebase/firebase_providers.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/domain/app_user.dart';
 import '../../features/auth/presentation/auth_provider.dart';
@@ -293,6 +294,8 @@ class AppShell extends ConsumerWidget {
       body: Column(
         children: [
           if (ref.watch(storageNoticeProvider) case final String notice)
+            _StorageNotice(notice: notice),
+          if (ref.watch(firebaseSyncNoticeProvider) case final String notice)
             _StorageNotice(notice: notice),
           Expanded(
             child: Stack(children: [Positioned.fill(child: child)]),

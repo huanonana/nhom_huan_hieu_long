@@ -32,7 +32,11 @@ void main() {
       password: 'DirectoryAdmin2026!',
     );
 
-    final repository = DemoBookingRepository(seed: false);
+    // Keep the fixed October 2026 fixtures in the future as calendar time moves.
+    final repository = DemoBookingRepository(
+      seed: false,
+      clock: () => DateTime(2026, 10, 22, 12),
+    );
     final booking = repository.create(
       roomId: 'garden-1',
       guestId: guest.uid,

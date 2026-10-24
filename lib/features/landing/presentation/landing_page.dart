@@ -624,6 +624,9 @@ class _StayDashboardPreviewState extends State<_StayDashboardPreview> {
                             _slides[index].$2.asset,
                             fit: BoxFit.cover,
                             width: double.infinity,
+                            // Decode near the rendered phone size to reduce
+                            // first-frame memory and GPU upload work.
+                            cacheWidth: 1200,
                           ),
                         ),
                         const DecoratedBox(

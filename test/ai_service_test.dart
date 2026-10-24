@@ -57,10 +57,18 @@ void main() {
       expect(request.url.host, 'generativelanguage.googleapis.com');
       expect(
         request.url.path,
-        contains('/v1beta/models/gemini-3.5-flash-lite:generateContent'),
+        contains('/v1beta/models/gemini-3.8-flash:generateContent'),
       );
       expect(request.method, 'POST');
       expect(request.headers['x-goog-api-key'], 'test-key');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final generationConfig =
+          body['generationConfig'] as Map<String, dynamic>;
+      expect(generationConfig['maxOutputTokens'], 512);
+      expect(
+        (generationConfig['thinkingConfig'] as Map)['thinkingLevel'],
+        'LOW',
+      );
     }
     final chatBody = jsonDecode(requests.first.body) as Map<String, dynamic>;
     expect(
@@ -148,8 +156,9 @@ void main() {
 
     expect(
       await service.summarizeReviews(['Phòng sạch']),
-      'Gemini phản hồi quá lâu. Hãy thử lại khi mạng ổn định hơn.',
+      AiService.timeoutMessage,
     );
+    expect(AiService.isErrorMessage(AiService.timeoutMessage), isTrue);
     service.close();
   });
 

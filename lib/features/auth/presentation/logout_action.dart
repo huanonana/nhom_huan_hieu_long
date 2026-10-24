@@ -10,6 +10,12 @@ Future<bool> signOutAndReturnToPublicPage(
   BuildContext context,
   WidgetRef ref,
 ) async {
+  // Keep the provider handles before the route can be removed. Signing out
+  // changes router state and may dispose the Consumer that supplied `ref`
+  // while this asynchronous operation is still unwinding.
+  final auth = ref.read(authRepositoryProvider);
+  final roleController = ref.read(roleProvider.notifier);
+  final signOutProgress = ref.read(signOutInProgressProvider.notifier);
   final userCleared = Completer<void>();
   final userSubscription = ref.listenManual(currentUserProvider, (_, next) {
     if (next.valueOrNull == null && !userCleared.isCompleted) {
@@ -19,11 +25,10 @@ Future<bool> signOutAndReturnToPublicPage(
   if (ref.read(currentUserProvider).valueOrNull == null) {
     userCleared.complete();
   }
-  ref.read(signOutInProgressProvider.notifier).state = true;
+  signOutProgress.state = true;
   try {
-    final auth = ref.read(authRepositoryProvider);
     await auth.signOut();
-    ref.read(roleProvider.notifier).state = DemoRole.guest;
+    roleController.state = DemoRole.guest;
     await userCleared.future.timeout(
       const Duration(seconds: 3),
       onTimeout: () {},
@@ -43,6 +48,6 @@ Future<bool> signOutAndReturnToPublicPage(
     return false;
   } finally {
     userSubscription.close();
-    ref.read(signOutInProgressProvider.notifier).state = false;
+    signOutProgress.state = false;
   }
 }

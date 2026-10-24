@@ -98,6 +98,7 @@ void main() {
     auth.failSignOut = false;
     await tester.tap(find.byTooltip('Đăng xuất'));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
     expect(
       container.read(routerProvider).routeInformationProvider.value.uri.path,
       '/',

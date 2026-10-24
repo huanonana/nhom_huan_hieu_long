@@ -1,9 +1,10 @@
-"""Local-only masked Gemini key setup and HHL Stay web builder."""
+"""Local-only masked Gemini key setup and HHL Stay web/Android builder."""
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -17,6 +18,7 @@ from urllib.request import urlopen
 
 PROJECT = Path(__file__).resolve().parents[1]
 BUILD_DIR = PROJECT / "build" / "web"
+APK_FILE = PROJECT / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
 LOG_DIR = PROJECT / ".tmp"
 LOG_FILE = LOG_DIR / "gemini_build.log"
 SETUP_PORT = 8099
@@ -34,10 +36,10 @@ button{margin-top:14px;background:#5145e8;border:0;border-radius:12px;color:whit
 #status{min-height:26px;margin-top:16px;font-weight:600}.safe{background:#f1f5ff;border-radius:12px;padding:12px;font-size:13px;color:#475569}
 </style>
 <main><h1>Bật Gemini cho HHL Stay</h1>
-<p>Nhập API key trong ô được che rồi bấm nút. Key chỉ gửi đến tiện ích đang chạy trên máy này để build localhost:8083.</p>
-<form id="form"><label for="key">Gemini API key</label><p><input id="key" type="password" autocomplete="off" spellcheck="false" required></p><button id="go">Build và bật Gemini</button></form>
+<p>Nhập API key trong ô được che rồi bấm nút. Key chỉ gửi đến tiện ích đang chạy trên máy này để build localhost:8083 và APK Android.</p>
+<form id="form"><label for="key">Gemini API key</label><p><input id="key" type="password" autocomplete="off" spellcheck="false" required></p><button id="go">Build Web + Android và bật Gemini</button></form>
 <div id="status" role="status"></div>
-<div class="safe">Không gửi key vào chat. Bản build web nhúng key vào JavaScript để gọi Gemini, vì vậy chỉ dùng key này cho localhost/demo; không phát hành bản build công khai.</div>
+<div class="safe">Không gửi key vào chat. Key được nhúng vào bản Web và APK demo để gọi Gemini, nên chỉ dùng trong đồ án/local demo; không phát hành công khai.</div>
 </main>
 <script>
 const form=document.querySelector('#form'), keyInput=document.querySelector('#key'), button=document.querySelector('#go'), statusBox=document.querySelector('#status');
@@ -146,6 +148,34 @@ def start_static_server() -> None:
     raise RuntimeError("Bản web đã build nhưng localhost:8083 chưa khởi động.")
 
 
+def version_web_assets() -> None:
+    """Bust browser caches when a fresh local demo build is installed."""
+    version = str(time.time_ns())
+    bootstrap_path = BUILD_DIR / "flutter_bootstrap.js"
+    bootstrap = bootstrap_path.read_text(encoding="utf-8")
+    bootstrap, bootstrap_count = re.subn(
+        r'("mainJsPath"\s*:\s*)"main\.dart\.js(?:\?[^\"]*)?"',
+        lambda match: f'{match.group(1)}"main.dart.js?v={version}"',
+        bootstrap,
+        count=1,
+    )
+    if bootstrap_count != 1:
+        raise RuntimeError("Không thể cập nhật phiên bản cache của main.dart.js.")
+    bootstrap_path.write_text(bootstrap, encoding="utf-8")
+
+    index_path = BUILD_DIR / "index.html"
+    index = index_path.read_text(encoding="utf-8")
+    index, index_count = re.subn(
+        r"bootstrap\.src = 'flutter_bootstrap\.js(?:\?[^']*)?';",
+        f"bootstrap.src = 'flutter_bootstrap.js?v={version}';",
+        index,
+        count=1,
+    )
+    if index_count != 1:
+        raise RuntimeError("Không thể cập nhật phiên bản cache của Flutter bootstrap.")
+    index_path.write_text(index, encoding="utf-8")
+
+
 def build_with_key(key: str) -> str:
     LOG_DIR.mkdir(exist_ok=True)
     flutter = shutil.which("flutter")
@@ -158,27 +188,38 @@ def build_with_key(key: str) -> str:
         flutter = next((str(candidate) for candidate in candidates if candidate.is_file()), None)
     if not flutter:
         raise RuntimeError("Không tìm thấy Flutter SDK trong PATH hoặc vị trí cài đặt phổ biến.")
-    fd, define_path = tempfile.mkstemp(prefix="hhl-gemini-", suffix=".json")
+    # Keep the short-lived define file on the project drive, which may differ
+    # from the Windows system temp drive. It is always removed after both builds.
+    fd, define_path = tempfile.mkstemp(prefix="hhl-gemini-", suffix=".json", dir=PROJECT / ".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as define_file:
             json.dump({"GEMINI_API_KEY": key}, define_file)
-        command = [
+        web_command = [
             flutter, "build", "web", f"--dart-define-from-file={define_path}",
             "--base-href", "/", "--output", str(BUILD_DIR), "--pwa-strategy=none",
         ]
         with open(LOG_FILE, "w", encoding="utf-8") as log:
-            result = subprocess.run(command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT)
+            result = subprocess.run(web_command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT)
         if result.returncode != 0:
-            raise RuntimeError("Flutter build thất bại.")
+            raise RuntimeError("Flutter build web thất bại.")
+
+        apk_command = [
+            flutter, "build", "apk", "--release", f"--dart-define-from-file={define_path}",
+        ]
+        with open(LOG_FILE, "a", encoding="utf-8") as log:
+            result = subprocess.run(apk_command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT)
+        if result.returncode != 0 or not APK_FILE.is_file():
+            raise RuntimeError("Flutter build Android APK thất bại.")
     finally:
         try:
             os.remove(define_path)
         except FileNotFoundError:
             pass
 
+    version_web_assets()
     stop_flutter_dev_server()
     start_static_server()
-    return "Build xong. Nhấn Ctrl+Shift+R tại localhost:8083/#/ai-chat rồi thử gửi tin nhắn."
+    return "Build xong cả Web và Android APK. Bản Web đang chạy ở localhost:8083; APK ở build/app/outputs/flutter-apk/app-release.apk."
 
 
 if __name__ == "__main__":

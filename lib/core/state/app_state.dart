@@ -8,6 +8,8 @@ import '../../features/review/domain/review.dart';
 import '../../features/dashboard/domain/finance_entry.dart';
 import '../../features/dashboard/domain/staff_shift.dart';
 import '../../features/dashboard/domain/staff_member.dart';
+import '../firebase/firebase_document_store.dart';
+import '../firebase/firebase_providers.dart';
 
 enum DemoRole { guest, host }
 
@@ -28,14 +30,22 @@ final staffMembersProvider = StateProvider<List<StaffMember>>(
   (ref) => const [],
 );
 final changesProvider = StateNotifierProvider<BookingController, int>(
-  (ref) => BookingController(ref.watch(repositoryProvider)),
+  (ref) => BookingController(
+    ref.watch(repositoryProvider),
+    documentStore: ref.watch(firebaseDocumentStoreProvider),
+    onSyncError: () => ref.read(firebaseSyncNoticeProvider.notifier).state =
+        'Dữ liệu đã đổi trên máy nhưng chưa đồng bộ Firebase. Kiểm tra Rules/kết nối.',
+  ),
 );
 
 class BookingController extends StateNotifier<int> {
-  BookingController(this.repository) : super(0) {
+  BookingController(this.repository, {this.documentStore, this.onSyncError})
+    : super(0) {
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => state++);
   }
   final BookingRepository repository;
+  final FirebaseDocumentStore? documentStore;
+  final void Function()? onSyncError;
   late final Timer _timer;
   void refreshFromStorage() => state++;
   Booking book({
@@ -77,6 +87,7 @@ class BookingController extends StateNotifier<int> {
       status,
       actorId: actorId ?? (role == DemoRole.host ? 'host-demo' : 'guest-demo'),
     );
+    _syncBooking(id);
     state++;
   }
 
@@ -93,6 +104,7 @@ class BookingController extends StateNotifier<int> {
       method: method,
       note: note,
     );
+    _syncBooking(bookingId);
     state++;
   }
 
@@ -102,16 +114,19 @@ class BookingController extends StateNotifier<int> {
       throw const BookingException('Mã nhận phòng không khớp đơn này.');
     }
     repository.transition(id, BookingStatus.checkedIn, actorId: 'host-demo');
+    _syncBooking(id);
     state++;
   }
 
   void saveHomestay(Homestay home) {
     repository.saveHomestay(home, actorId: 'host-demo');
+    _sync(() => documentStore?.saveHomestay(home));
     state++;
   }
 
   void saveRoom(Room room) {
     repository.saveRoom(room, actorId: 'host-demo');
+    _sync(() => documentStore?.saveRoom(room));
     state++;
   }
 
@@ -121,16 +136,19 @@ class BookingController extends StateNotifier<int> {
         .firstOrNull;
     if (room == null) throw const BookingException('Không tìm thấy phòng.');
     repository.saveRoom(room.withHousekeeping(status), actorId: 'host-demo');
+    _sync(() => documentStore?.saveRoom(room.withHousekeeping(status)));
     state++;
   }
 
   void deleteRoom(String id) {
     repository.deleteRoom(id, actorId: 'host-demo');
+    _sync(() => documentStore?.deleteRoom(id));
     state++;
   }
 
   void deleteHomestay(String id) {
     repository.deleteHomestay(id, actorId: 'host-demo');
+    _sync(() => documentStore?.deleteHomestay(id));
     state++;
   }
 
@@ -146,8 +164,29 @@ class BookingController extends StateNotifier<int> {
       rating: rating,
       comment: comment,
     );
+    _sync(() => documentStore?.saveReview(review));
     state++;
     return review;
+  }
+
+  void _syncBooking(String id) {
+    final booking = repository.bookings
+        .where((item) => item.id == id)
+        .firstOrNull;
+    if (booking != null) _sync(() => documentStore?.saveBooking(booking));
+  }
+
+  void _sync(Future<void>? Function() operation) {
+    if (documentStore == null) return;
+    unawaited(
+      Future<void>(() async {
+        try {
+          await operation();
+        } catch (_) {
+          onSyncError?.call();
+        }
+      }),
+    );
   }
 
   @override

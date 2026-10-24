@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/firebase/firebase_providers.dart';
+import '../data/demo_booking_repository.dart';
 import '../../../core/router/navigation.dart';
 import '../../../core/widgets/common.dart';
 import '../domain/booking.dart';
@@ -132,7 +134,11 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
       return;
     }
     try {
-      ref
+      final repository = ref.read(repositoryProvider);
+      final beforeBooking = repository is DemoBookingRepository
+          ? repository.toJson()
+          : null;
+      final booking = ref
           .read(changesProvider.notifier)
           .book(
             roomId: widget.roomId,
@@ -146,6 +152,17 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
             couponCode: _couponApplied ? _coupon.text : '',
             note: _note.text,
           );
+      if (ref.read(firebaseModeProvider)) {
+        try {
+          await ref.read(firebaseDocumentStoreProvider)!.saveBooking(booking);
+        } catch (_) {
+          if (repository is DemoBookingRepository && beforeBooking != null) {
+            repository.restoreFromJson(beforeBooking);
+          }
+          ref.read(changesProvider.notifier).refreshFromStorage();
+          rethrow;
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           behavior: SnackBarBehavior.floating,
@@ -156,6 +173,11 @@ class _BookingFormPageState extends ConsumerState<BookingFormPage> {
       context.go('/bookings');
     } on BookingException catch (error) {
       showError(context, error);
+    } catch (_) {
+      showError(
+        context,
+        'Chưa lưu được đơn lên Firebase. Không tạo đơn để tránh hiển thị đặt phòng chưa đồng bộ.',
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

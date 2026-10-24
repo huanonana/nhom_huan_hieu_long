@@ -42,6 +42,55 @@ class DemoBookingRepository implements BookingRepository {
   List<Booking> get bookings => List.unmodifiable(_bookings);
   @override
   List<Homestay> get homestays => List.unmodifiable(_homestays);
+
+  /// Merges cloud bookings into the local cache by stable document ID.
+  /// Existing domain fixtures are retained when no cloud counterpart exists.
+  void mergeCloudBookings(Iterable<Booking> cloudBookings) {
+    for (final cloudBooking in cloudBookings) {
+      final index = _bookings.indexWhere((item) => item.id == cloudBooking.id);
+      if (index < 0) {
+        _bookings.add(cloudBooking);
+      } else {
+        _bookings[index] = cloudBooking;
+      }
+    }
+  }
+
+  /// Merges persisted public catalog and review documents over the local demo
+  /// seed while retaining local-only items that are not in Firestore yet.
+  void mergeCloudCatalog({
+    Iterable<Homestay> homes = const [],
+    Iterable<Room> rooms = const [],
+    Iterable<StayReview> reviews = const [],
+  }) {
+    for (final home in homes) {
+      final index = _homestays.indexWhere((item) => item.id == home.id);
+      if (index < 0) {
+        _homestays.add(home);
+      } else {
+        _homestays[index] = home;
+      }
+    }
+    for (final room in rooms) {
+      final index = _rooms.indexWhere((item) => item.id == room.id);
+      if (index < 0) {
+        _rooms.add(room);
+      } else {
+        _rooms[index] = room;
+      }
+    }
+    for (final review in reviews) {
+      final index = _reviews.indexWhere(
+        (item) => item.bookingId == review.bookingId,
+      );
+      if (index < 0) {
+        _reviews.add(review);
+      } else {
+        _reviews[index] = review;
+      }
+    }
+  }
+
   final List<Homestay> _homestays = [
     Homestay(
       id: 'pine',

@@ -40,6 +40,9 @@ dependencies:
   flutter_slidable: ^4.0.3
   crypto: 3.0.6
   image_picker: ^1.2.2
+  firebase_core: ^5.1.0
+  firebase_auth: ^7.0.1
+  cloud_firestore: ^7.1.0
 
 dev_dependencies:
   flutter_test:

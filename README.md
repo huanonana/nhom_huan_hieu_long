@@ -8,12 +8,24 @@ Cần Flutter stable có Dart 3.9 trở lên.
 
 ```bash
 flutter pub get
-flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8080
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8083
 ```
 
-Mở `http://127.0.0.1:8080`. Để chạy trên thiết bị Android/iOS, chọn thiết bị tương ứng trong `flutter run`.
+Mở `http://127.0.0.1:8083`. Để chạy trên thiết bị Android/iOS, chọn thiết bị tương ứng trong `flutter run`.
 
-## Tài khoản demo
+## Chế độ dữ liệu
+
+Mặc định app chạy chế độ local để demo ngoại tuyến ổn định. Để chạy với Firebase đã cấu hình cho dự án lớp:
+
+```bash
+flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
+```
+
+Ở chế độ Firebase, đăng ký/đăng nhập dùng Firebase Authentication, hồ sơ tài khoản được ghi vào `users`, và dữ liệu đơn đặt, homestay, phòng, đánh giá, tài chính, nhân viên, ca làm được tải/gộp khi khởi động rồi đồng bộ khi có thay đổi. Chế độ local vẫn dùng SharedPreferences và hai tài khoản bên dưới. Không chuyển dữ liệu local sang Firebase tự động.
+
+Rules hiện nằm trong [firestore.rules](firestore.rules) và đã được triển khai lên Firebase project `hhl-stay-home-2026-23010895` để chạy đồ án. Đây là rules phát triển rất rộng (đọc công khai, người đăng nhập được ghi); **không dùng cho ứng dụng thật**. Firebase client config chỉ trỏ tới project, không chứa service-account credential.
+
+## Tài khoản demo local
 
 App tự tạo hai tài khoản demo trên thiết bị khi khởi động lần đầu:
 
@@ -22,7 +34,7 @@ App tự tạo hai tài khoản demo trên thiết bị khi khởi động lần
 | Khách | `hhl-khach-demo-2026@example.com` | `HHLstayKhach2026!` |
 | Quản trị viên | `hhl-admin-demo-2026@example.com` | `HHLstayAdmin2026!` |
 
-Đây là tài khoản phục vụ trình diễn. Đăng ký, phiên đăng nhập, homestay, phòng, đơn đặt, đánh giá và yêu thích lưu cục bộ trên trình duyệt/thiết bị bằng SharedPreferences; chúng không đồng bộ sang máy khác và có thể mất khi xóa dữ liệu trình duyệt.
+Đây là tài khoản phục vụ trình diễn ở chế độ local; chúng không phải tài khoản Firebase. Đăng ký, phiên đăng nhập, homestay, phòng, đơn đặt, đánh giá và yêu thích local lưu trên thiết bị bằng SharedPreferences.
 
 ## Chức năng chính
 
@@ -36,7 +48,7 @@ App tự tạo hai tài khoản demo trên thiết bị khi khởi động lần
 Tạo key tại [Google AI Studio](https://aistudio.google.com/app/apikey), sau đó truyền key khi chạy:
 
 ```bash
-flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8080 --dart-define=GEMINI_API_KEY=YOUR_KEY
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8083 --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 
 Không commit API key. Flutter Web đưa giá trị này vào mã JavaScript phía trình duyệt, vì vậy chỉ dùng key giới hạn cho demo; sản phẩm thật cần proxy qua backend. Không có key, các luồng đặt phòng và quản lý vẫn hoạt động, chatbot chuyển sang nội dung tư vấn có sẵn.
@@ -48,6 +60,8 @@ dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
 flutter build web
+# Firebase-enabled Android debug build
+flutter build apk --debug --dart-define=HHL_USE_FIREBASE=true
 ```
 
 ## Tài liệu
@@ -59,4 +73,4 @@ flutter build web
 
 ## Giới hạn bản demo
 
-Đây là ứng dụng demo học thuật, chưa dùng dịch vụ xác thực, cơ sở dữ liệu hoặc thanh toán tập trung. Số liệu doanh thu/chi tiêu được tính từ dữ liệu demo cục bộ, không đại diện giao dịch thật. Cần backend và phân quyền phía máy chủ trước khi triển khai công khai.
+Đây là ứng dụng demo học thuật. Local mode lưu dữ liệu trên thiết bị; Firebase mode có Auth và Firestore cho các luồng đã tích hợp. Rules hiện cho phép đọc công khai và mọi tài khoản đăng nhập ghi, vì vậy không lưu dữ liệu khách thật. Số liệu doanh thu/chi tiêu là dữ liệu demo, không đại diện giao dịch thật. Thanh toán, thông báo push, kiểm soát quyền theo chủ sở hữu, xử lý đặt trùng trên server và đồng bộ ngoại tuyến đầy đủ chưa có.

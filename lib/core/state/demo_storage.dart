@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase/firebase_document_store.dart';
+import '../firebase/firebase_providers.dart';
 import '../../features/booking/data/demo_booking_repository.dart';
 import '../../features/auth/data/demo_auth_repository.dart';
 import '../../features/auth/domain/app_user.dart';
+import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/presentation/auth_provider.dart';
 import '../../features/dashboard/domain/finance_entry.dart';
 import '../../features/dashboard/domain/staff_shift.dart';
@@ -21,8 +24,15 @@ class DemoStorage {
     this.readAuth,
     this.writeAuth,
     this.syncInterval,
+    this.authRepository,
+    this.firebaseMode = false,
+    this.documentStore,
   });
-  factory DemoStorage.device() {
+  factory DemoStorage.device({
+    AuthRepository? authRepository,
+    bool firebaseMode = false,
+    FirebaseDocumentStore? documentStore,
+  }) {
     final prefs = SharedPreferencesAsync();
     return DemoStorage(
       read: () => prefs.getString('hhl_demo_v1'),
@@ -30,6 +40,9 @@ class DemoStorage {
       readAuth: () => prefs.getString('hhl_auth_v1'),
       writeAuth: (value) => prefs.setString('hhl_auth_v1', value),
       syncInterval: const Duration(seconds: 2),
+      authRepository: authRepository,
+      firebaseMode: firebaseMode,
+      documentStore: documentStore,
     );
   }
   final Future<String?> Function() read;
@@ -37,6 +50,9 @@ class DemoStorage {
   final Future<String?> Function()? readAuth;
   final Future<void> Function(String)? writeAuth;
   final Duration? syncInterval;
+  final AuthRepository? authRepository;
+  final bool firebaseMode;
+  final FirebaseDocumentStore? documentStore;
   Future<void> _pending = Future.value();
   Future<void> _authPending = Future.value();
   final List<Timer> _syncTimers = [];
@@ -62,9 +78,11 @@ class DemoStorage {
     var staffMembers = <StaffMember>[];
     String? notice;
     var canSave = true;
-    final authRepository = DemoAuthRepository.instance;
+    final demoAuthRepository = DemoAuthRepository.instance;
+    final authRepository = this.authRepository ?? demoAuthRepository;
+    final usesLocalAuth = authRepository is DemoAuthRepository;
     var canSaveAuth = true;
-    if (readAuth != null) {
+    if (readAuth != null && usesLocalAuth) {
       try {
         authRepository.restoreSnapshot(await readAuth!());
       } catch (_) {
@@ -155,18 +173,18 @@ class DemoStorage {
     var seededGuestHistory = false;
     var seededDemoFinance = false;
     var seededDemoAccounts = false;
-    if (readAuth != null && canSaveAuth) {
-      seededDemoAccounts = authRepository.ensureDemoAccounts();
+    if (readAuth != null && canSaveAuth && usesLocalAuth) {
+      seededDemoAccounts = demoAuthRepository.ensureDemoAccounts();
     }
     if (canSave) {
       repository.ensureRevenueDemoBookings();
-      if (readAuth != null && canSaveAuth) {
+      if (readAuth != null && canSaveAuth && usesLocalAuth) {
         final beforeFinance = financeEntries.map((entry) => entry.id).toSet();
         for (final entry in _demoFinanceEntries) {
           if (!beforeFinance.contains(entry.id)) financeEntries.add(entry);
         }
         seededDemoFinance = financeEntries.length != beforeFinance.length;
-        final demoGuest = authRepository.userByEmail(
+        final demoGuest = demoAuthRepository.userByEmail(
           DemoAuthRepository.demoGuestEmail,
         );
         if (demoGuest != null && demoGuest.role == AppUserRole.guest) {
@@ -181,7 +199,9 @@ class DemoStorage {
         }
       }
     }
-    var activeUserId = authRepository.signedInUser?.uid;
+    var activeUserId = usesLocalAuth
+        ? demoAuthRepository.signedInUser?.uid
+        : null;
     if (activeUserId != null) {
       favorites = favoritesByUser[activeUserId] ?? legacyFavorites;
       recentHomestays =
@@ -205,11 +225,15 @@ class DemoStorage {
         // provider's default remains available only to isolated widget tests.
         authModeProvider.overrideWithValue(true),
         roleProvider.overrideWith(
-          (ref) => authRepository.signedInUser?.role == AppUserRole.host
+          (ref) =>
+              usesLocalAuth &&
+                  demoAuthRepository.signedInUser?.role == AppUserRole.host
               ? DemoRole.host
               : DemoRole.guest,
         ),
         authRepositoryProvider.overrideWithValue(authRepository),
+        firebaseModeProvider.overrideWithValue(firebaseMode),
+        firebaseDocumentStoreProvider.overrideWithValue(documentStore),
         repositoryProvider.overrideWithValue(repository),
         favoritesProvider.overrideWith((ref) => favorites),
         recentHomestaysProvider.overrideWith((ref) => recentHomestays),
@@ -219,8 +243,8 @@ class DemoStorage {
       ],
     );
     container.read(storageNoticeProvider.notifier).state = notice;
-    if (writeAuth != null && canSaveAuth) {
-      authRepository.setPersistence((snapshot) async {
+    if (writeAuth != null && canSaveAuth && usesLocalAuth) {
+      demoAuthRepository.setPersistence((snapshot) async {
         _authPending = _authPending.then((_) async {
           try {
             await writeAuth!(snapshot);
@@ -235,10 +259,10 @@ class DemoStorage {
         await _authPending;
       });
     } else {
-      authRepository.setPersistence(null);
+      if (usesLocalAuth) demoAuthRepository.setPersistence(null);
     }
     if (seededDemoAccounts && writeAuth != null && canSaveAuth) {
-      await authRepository.persistSnapshot();
+      await demoAuthRepository.persistSnapshot();
     }
     String? previous = lastKnownSnapshot;
     var saving = false;
@@ -336,6 +360,62 @@ class DemoStorage {
     container.listen(financeEntriesProvider, (_, _) => save());
     container.listen(staffShiftsProvider, (_, _) => save());
     container.listen(staffMembersProvider, (_, _) => save());
+    if (documentStore case final store?) {
+      var financeSnapshot = {
+        for (final item in financeEntries) item.id: jsonEncode(item.toJson()),
+      };
+      var shiftsSnapshot = {
+        for (final item in staffShifts) item.id: jsonEncode(item.toJson()),
+      };
+      var staffSnapshot = {
+        for (final item in staffMembers) item.id: jsonEncode(item.toJson()),
+      };
+      container.listen(financeEntriesProvider, (_, next) {
+        final latest = {
+          for (final item in next) item.id: jsonEncode(item.toJson()),
+        };
+        for (final item in next) {
+          if (latest[item.id] == financeSnapshot[item.id]) continue;
+          unawaited(
+            store.saveFinanceEntry(item).catchError((_) {
+              container.read(firebaseSyncNoticeProvider.notifier).state =
+                  'Chưa đồng bộ được dữ liệu tài chính lên Firebase.';
+            }),
+          );
+        }
+        financeSnapshot = latest;
+      });
+      container.listen(staffShiftsProvider, (_, next) {
+        final latest = {
+          for (final item in next) item.id: jsonEncode(item.toJson()),
+        };
+        for (final item in next) {
+          if (latest[item.id] == shiftsSnapshot[item.id]) continue;
+          unawaited(
+            store.saveStaffShift(item).catchError((_) {
+              container.read(firebaseSyncNoticeProvider.notifier).state =
+                  'Chưa đồng bộ được lịch nhân viên lên Firebase.';
+            }),
+          );
+        }
+        shiftsSnapshot = latest;
+      });
+      container.listen(staffMembersProvider, (_, next) {
+        final latest = {
+          for (final item in next) item.id: jsonEncode(item.toJson()),
+        };
+        for (final item in next) {
+          if (latest[item.id] == staffSnapshot[item.id]) continue;
+          unawaited(
+            store.saveStaffMember(item).catchError((_) {
+              container.read(firebaseSyncNoticeProvider.notifier).state =
+                  'Chưa đồng bộ được hồ sơ nhân viên lên Firebase.';
+            }),
+          );
+        }
+        staffSnapshot = latest;
+      });
+    }
     if (syncInterval case final interval?) {
       final syncTimer = Timer.periodic(interval, (_) async {
         if (saving || syncing) return;

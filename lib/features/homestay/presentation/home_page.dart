@@ -397,6 +397,7 @@ class _HeroPhoto extends StatelessWidget {
             Image.asset(
               photo.asset,
               fit: BoxFit.cover,
+              cacheWidth: 1200,
               semanticLabel: photo.caption,
             ),
             const DecoratedBox(
