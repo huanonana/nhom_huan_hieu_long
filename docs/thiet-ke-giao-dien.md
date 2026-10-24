@@ -46,3 +46,8 @@ Cập nhật theo yêu cầu bám Go2Joy: điểm nhấn cam; lựa chọn Qua �
 - Album mỗi homestay gồm 3 ảnh: vuốt ngang, nút trước/sau, ảnh thu nhỏ, mở toàn màn hình và phóng to. Nguồn ảnh hiển thị trong album.
 - Nút Tìm phòng ngay đưa đến kết quả; lối tắt Ấm cúng / Có hồ bơi / Giá dễ chịu thực sự áp dụng bộ lọc.
 - Giữ đặt theo đêm, không thêm lựa chọn theo giờ khi dữ liệu chưa hỗ trợ.
+
+
+## Câu 5 — mẫu dashboard StudySmart
+
+Nhóm chọn mẫu StudySmart trong ảnh tham chiếu được cung cấp: lời chào và trạng thái người dùng ở đầu trang, các thẻ thống kê, một hành động chính, danh sách thao tác nhanh và thanh điều hướng dưới. Trang chủ HHL Stay chuyển các thành phần này thành lời chào khách, số chỗ nghỉ/điểm đến, nút tìm chỗ nghỉ, các lối tắt đến khám phá/đơn đặt/yêu thích/trợ lý, danh sách điểm đến và thanh điều hướng hiện có. Màn hình chỉ áp dụng cho viewport điện thoại (rộng dưới 600 px); giao diện desktop và các luồng đặt phòng giữ nguyên. Ảnh triển khai được chụp từ localhost tại 393 × 852 CSS px ở `output/report/HHL_Stay_home_studysmart_localhost.png`; ảnh so sánh mẫu và kết quả nằm ở `output/report/StudySmart_HHL_Stay_so_sanh.png` và Hình G.15 trong báo cáo.

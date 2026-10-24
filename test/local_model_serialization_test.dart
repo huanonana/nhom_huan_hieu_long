@@ -75,6 +75,10 @@ void main() {
       createdAt: start,
     );
 
+    expect(
+      booking.toJson()['checkInEpochMillis'],
+      start.millisecondsSinceEpoch,
+    );
     final restoredBooking = Booking.fromJson(booking.toJson());
     expect(restoredBooking.id, booking.id);
     expect(restoredBooking.status, booking.status);

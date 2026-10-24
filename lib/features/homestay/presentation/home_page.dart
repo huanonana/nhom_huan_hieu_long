@@ -32,6 +32,22 @@ class _HomeContent extends StatelessWidget {
     }
     final featured = homes.take(6).toList(growable: false);
 
+    // Câu 5 reference: StudySmart mobile dashboard. Keep the desktop landing
+    // page intact while using its greeting → stats → primary action → quick
+    // links hierarchy for the phone layout.
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return _MobileHomeDashboard(
+        homes: homes,
+        rooms: rooms,
+        destinations: destinations.toList(growable: false),
+        featured: featured,
+        onExplore: () => context.go('/explore'),
+        onBookings: () => context.go('/bookings'),
+        onFavorites: () => context.go('/favorites'),
+        onAskAi: () => context.go('/ai-chat'),
+      );
+    }
+
     return PageBody(
       maxWidth: 1180,
       children: [
@@ -167,6 +183,366 @@ class _HomeContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class _MobileHomeDashboard extends StatelessWidget {
+  const _MobileHomeDashboard({
+    required this.homes,
+    required this.rooms,
+    required this.destinations,
+    required this.featured,
+    required this.onExplore,
+    required this.onBookings,
+    required this.onFavorites,
+    required this.onAskAi,
+  });
+
+  final List<Homestay> homes;
+  final List<Room> rooms;
+  final List<String> destinations;
+  final List<Homestay> featured;
+  final VoidCallback onExplore;
+  final VoidCallback onBookings;
+  final VoidCallback onFavorites;
+  final VoidCallback onAskAi;
+
+  @override
+  Widget build(BuildContext context) {
+    return PageBody(
+      maxWidth: 520,
+      children: [
+        const Text(
+          'Chào bạn! 👋',
+          style: TextStyle(
+            color: ink,
+            fontSize: 25,
+            height: 1.1,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -.6,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'Sẵn sàng cho chuyến đi tiếp theo chưa?',
+          style: TextStyle(color: muted, fontSize: 13),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _MobileStayStat(
+                icon: Icons.hotel_rounded,
+                value: '${homes.length}',
+                label: 'Chỗ nghỉ',
+                tint: const Color(0xFFECEBFF),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MobileStayStat(
+                icon: Icons.location_city_rounded,
+                value: '${destinations.length}',
+                label: 'Điểm đến',
+                tint: const Color(0xFFFFF1E7),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 16, 16),
+          decoration: BoxDecoration(
+            color: brand,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x263B35C8),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'BẮT ĐẦU CHUYẾN ĐI',
+                      style: TextStyle(
+                        color: Color(0xFFDCD9FF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .7,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    const Text(
+                      'Bạn muốn nghỉ ở đâu?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Chọn ngày và tìm chỗ nghỉ hợp gu.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .82),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Tìm homestay',
+                  onPressed: onExplore,
+                  icon: const Icon(Icons.arrow_forward_rounded, color: brand),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        const Text(
+          'Khám phá nhanh',
+          style: TextStyle(
+            color: ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _MobileQuickLink(
+          icon: Icons.search_rounded,
+          title: 'Tìm homestay',
+          subtitle: 'Lọc theo điểm đến, ngày ở và tiện nghi',
+          onTap: onExplore,
+        ),
+        const SizedBox(height: 9),
+        _MobileQuickLink(
+          icon: Icons.bookmark_border_rounded,
+          title: 'Đơn đặt phòng',
+          subtitle: 'Theo dõi yêu cầu và lịch sử đặt chỗ',
+          onTap: onBookings,
+        ),
+        const SizedBox(height: 9),
+        _MobileQuickLink(
+          icon: Icons.favorite_border_rounded,
+          title: 'Chỗ nghỉ yêu thích',
+          subtitle: 'Mở lại những nơi bạn đã lưu',
+          onTap: onFavorites,
+        ),
+        const SizedBox(height: 9),
+        _MobileQuickLink(
+          icon: Icons.auto_awesome_rounded,
+          title: 'Trợ lý chọn homestay',
+          subtitle: 'Hỏi về điểm đến, giá và tiện nghi',
+          onTap: onAskAi,
+        ),
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Điểm đến nổi bật',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.3,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onExplore, child: const Text('Xem tất cả')),
+          ],
+        ),
+        if (destinations.isEmpty)
+          const _HomeEmptyState()
+        else
+          SizedBox(
+            height: 138,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: destinations.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final city = destinations[index];
+                final home = homes.firstWhere((item) => item.city == city);
+                return _DestinationTile(
+                  city: city,
+                  home: home,
+                  onTap: () => context.go(
+                    '/explore?${Uri(queryParameters: {'city': city}).query}',
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 18),
+        const Text(
+          'Chỗ nghỉ gợi ý',
+          style: TextStyle(
+            color: ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (featured.isEmpty)
+          const _HomeEmptyState()
+        else
+          for (final home in featured) ...[
+            _FeaturedStayCard(
+              home: home,
+              rooms: rooms
+                  .where((room) => room.homestayId == home.id && room.active)
+                  .toList(growable: false),
+              onTap: () => context.push('/homestays/${home.id}'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        const SizedBox(height: 8),
+        _MemberOfferCard(onExplore: onExplore),
+        const SizedBox(height: 18),
+      ],
+    );
+  }
+}
+
+class _MobileStayStat extends StatelessWidget {
+  const _MobileStayStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.tint,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 92),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFE7EAF3)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+          child: Icon(icon, color: brand, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: ink,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: muted, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MobileQuickLink extends StatelessWidget {
+  const _MobileQuickLink({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE7EAF3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECEBFF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: brand, size: 18),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: ink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: muted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: muted),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _MemberOfferCard extends StatelessWidget {

@@ -89,9 +89,10 @@ và https://firebase.google.com/docs/firestore/transaction-data-contention
    trùng lịch, review, tài chính và trạng thái.
 2. **Firebase lớp — đã tích hợp một phần.** Firebase Auth email/mật khẩu, hồ sơ
    người dùng, Firestore document store và role-based Rules đã triển khai; web
-   Firebase và APK debug build thành công. Rules Emulator có 6 nhóm test tự động,
-   chạy lại đạt ngày 24/10/2026. Auth/profile smoke test trước đó đã qua; chưa có
-   E2E đủ các luồng đặt phòng, host, tài chính và nhân viên sau lần siết Rules.
+   Firebase và Android Firebase debug APK build thành công. Rules Emulator có 7
+   nhóm test tự động, chạy lại đạt ngày 25/10/2026. Các test Flutter và emulator
+   không thay cho E2E đủ các luồng đặt phòng, host, tài chính và nhân viên trên
+   project Firebase thật; lượt rà này không dùng Medium Phone.
 3. **Hardening production — còn thiếu.** Rules lớp hiện tách quyền khách/quản lý,
    nhưng mô hình vẫn chỉ có một vai trò host, không có phân tách nhiều chủ sở hữu;
    thêm transaction đặt phòng, retry/offline queue, đồng bộ đa thiết bị, xác minh
@@ -107,4 +108,4 @@ chặn tự nâng quyền và dành dữ liệu vận hành cho host. Đây vẫ
 chủ homestay, chưa có transaction máy chủ chống đặt trùng đồng thời. Không dùng dữ
 liệu khách thật. QR vẫn là demo; thanh toán/đối soát và FCM chưa có.
 Không công bố bản thử này là hệ thống đặt phòng production.
-Android đã nâng cấu hình Gradle và build APK debug; còn cần thử trên thiết bị.
+Android đã nâng cấu hình Gradle và build APK debug; APK chưa được cài hoặc thử trên thiết bị ở lượt rà ngày 25/10/2026.

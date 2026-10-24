@@ -99,6 +99,64 @@ void main() {
     service.close();
   });
 
+  test('uses the local demo proxy without sending a Google API key', () async {
+    late http.Request captured;
+    final service = AiService(
+      apiKey: '',
+      proxyBaseUrl: 'http://127.0.0.1:8099/',
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': 'Gemini trả lời qua proxy'},
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    expect(
+      await service.chatReply(const [], 'Tìm homestay'),
+      'Gemini trả lời qua proxy',
+    );
+    expect(captured.url.toString(), contains('127.0.0.1:8099/v1beta/models/'));
+    expect(captured.headers.containsKey('x-goog-api-key'), isFalse);
+    service.close();
+  });
+
+  test('reports when the local demo proxy has no in-memory key', () async {
+    final service = AiService(
+      apiKey: '',
+      proxyBaseUrl: 'http://127.0.0.1:8099',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {
+              'status': 'HHL_AI_NOT_CONFIGURED',
+              'message': 'Local demo key has not been configured.',
+            },
+          }),
+          503,
+        ),
+      ),
+    );
+
+    expect(
+      await service.chatReply(const [], 'Tìm homestay'),
+      AiService.proxyNotConfiguredMessage,
+    );
+    service.close();
+  });
+
   test('returns a friendly message when the API request fails', () async {
     final service = AiService(
       apiKey: 'test-key',
@@ -188,7 +246,7 @@ void main() {
   });
 
   test('shows a sanitized Google reason for other 403 responses', () async {
-    const leakedLookingKey = 'AIza0123456789abcdefghijklmnopqrstuv';
+    const leakedLookingKey = 'AIza12345678901234567890';
     final service = AiService(
       apiKey: 'test-key',
       client: MockClient(

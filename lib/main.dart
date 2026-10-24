@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/firebase/firebase_document_store.dart';
 import 'core/firebase/firebase_live_sync.dart';
 import 'core/router/app_router.dart';
@@ -14,6 +16,14 @@ const _firebaseEnabled = bool.fromEnvironment(
   'HHL_USE_FIREBASE',
   defaultValue: false,
 );
+const _firebaseEmulatorsEnabled = bool.fromEnvironment(
+  'HHL_USE_FIREBASE_EMULATORS',
+  defaultValue: false,
+);
+const _firebaseEmulatorHost = String.fromEnvironment(
+  'HHL_FIREBASE_EMULATOR_HOST',
+  defaultValue: '127.0.0.1',
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +35,13 @@ Future<void> main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      if (_firebaseEmulatorsEnabled) {
+        await FirebaseAuth.instance.useAuthEmulator(_firebaseEmulatorHost, 9099);
+        FirebaseFirestore.instance.useFirestoreEmulator(
+          _firebaseEmulatorHost,
+          8180,
+        );
+      }
       firebaseAuth = FirebaseAuthRepository();
       documentStore = FirebaseDocumentStore();
     } catch (_) {

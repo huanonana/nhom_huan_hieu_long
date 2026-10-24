@@ -10,6 +10,7 @@ import '../domain/ai_message.dart';
 class AiService {
   AiService({
     required this.apiKey,
+    this.proxyBaseUrl = '',
     http.Client? client,
     this.model = 'gemini-3.6-flash',
   }) : _client = client ?? http.Client(),
@@ -31,6 +32,8 @@ class AiService {
       'Gemini đã hết lượt miễn phí tạm thời. Hãy thử lại sau.';
   static const String modelUnavailableMessage =
       'Model Gemini hiện không khả dụng. Hãy cập nhật cấu hình AI.';
+  static const String proxyNotConfiguredMessage =
+      'Gemini chưa được cấu hình trên máy demo. Mở trang Bật Gemini rồi nhập API key.';
   static const String serviceBusyMessage =
       'Gemini đang bận. Hãy thử lại sau ít phút.';
   static const String timeoutMessage =
@@ -38,11 +41,15 @@ class AiService {
   static const String _endpoint = 'generativelanguage.googleapis.com';
 
   final String apiKey;
+
+  /// Optional local-only proxy. The API key stays on the host running it and
+  /// is never compiled into the Flutter Web bundle or Android APK.
+  final String proxyBaseUrl;
   final String model;
   final http.Client _client;
   final bool _ownsClient;
 
-  bool get isConfigured => apiKey.trim().isNotEmpty;
+  bool get isConfigured => apiKey.trim().isNotEmpty || proxyBaseUrl.isNotEmpty;
 
   /// Includes project-specific Google diagnostics, which are shown verbatim
   /// to help debug but must never be mistaken for a successful AI reply.
@@ -56,6 +63,7 @@ class AiService {
         serviceDisabledMessage,
         quotaExceededMessage,
         modelUnavailableMessage,
+        proxyNotConfiguredMessage,
         serviceBusyMessage,
         timeoutMessage,
       }.contains(message) ||
@@ -67,7 +75,7 @@ class AiService {
     String? systemContext,
   }) async {
     try {
-      if (apiKey.trim().isEmpty) return unavailableMessage;
+      if (!isConfigured) return unavailableMessage;
       final prompt = StringBuffer(
         'Bạn là trợ lý tư vấn đặt homestay tại Việt Nam. Trả lời bằng '
         'tiếng Việt, ngắn gọn, hữu ích; không tự bịa thông tin về chỗ ở.',
@@ -98,7 +106,7 @@ class AiService {
 
   Future<String> summarizeReviews(List<String> reviewTexts) async {
     try {
-      if (apiKey.trim().isEmpty) return unavailableMessage;
+      if (!isConfigured) return unavailableMessage;
       if (reviewTexts.isEmpty) return 'Chưa có đánh giá để tóm tắt.';
       final reviews = reviewTexts
           .asMap()
@@ -131,7 +139,7 @@ class AiService {
     List<String> amenities,
   ) async {
     try {
-      if (apiKey.trim().isEmpty) return unavailableMessage;
+      if (!isConfigured) return unavailableMessage;
       return await _send(
         contents: [
           {
@@ -158,15 +166,19 @@ class AiService {
     required List<Map<String, Object>> contents,
     String? system,
   }) async {
-    if (apiKey.trim().isEmpty) return unavailableMessage;
-    final uri = Uri.https(_endpoint, '/v1beta/models/$model:generateContent');
+    if (!isConfigured) return unavailableMessage;
+    final uri = proxyBaseUrl.isNotEmpty
+        ? Uri.parse(
+            '${proxyBaseUrl.replaceFirst(RegExp(r'/+$'), '')}'
+            '/v1beta/models/$model:generateContent',
+          )
+        : Uri.https(_endpoint, '/v1beta/models/$model:generateContent');
+    final headers = <String, String>{'content-type': 'application/json'};
+    if (proxyBaseUrl.isEmpty) headers['x-goog-api-key'] = apiKey;
     final response = await _client
         .post(
           uri,
-          headers: {
-            'content-type': 'application/json',
-            'x-goog-api-key': apiKey,
-          },
+          headers: headers,
           body: jsonEncode({
             if (system != null)
               'systemInstruction': {
@@ -220,6 +232,10 @@ class AiService {
         .map((detail) => '${detail['reason'] ?? ''}')
         .join(' ');
     final diagnostic = '$status $reason $message'.toUpperCase();
+
+    if (diagnostic.contains('HHL_AI_NOT_CONFIGURED')) {
+      return proxyNotConfiguredMessage;
+    }
 
     if (diagnostic.contains('SERVICE_DISABLED') ||
         diagnostic.contains('API HAS NOT BEEN USED') ||

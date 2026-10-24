@@ -77,6 +77,9 @@ class Booking {
     'guestPhone': guestPhone,
     'roomName': roomName,
     'checkIn': checkIn.toIso8601String(),
+    // Keep a numeric instant alongside the date-only ISO value so Firestore
+    // Rules can enforce the same 24-hour cancellation cutoff as the app.
+    'checkInEpochMillis': checkIn.millisecondsSinceEpoch,
     'checkOut': checkOut.toIso8601String(),
     'guests': guests,
     'pricePerNight': pricePerNight,

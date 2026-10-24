@@ -29,34 +29,64 @@ review eligibility, and finance/staff restrictions. Run them from the repo root:
 
 ```powershell
 npm ci --prefix tool/firestore-rules-tests
-firebase emulators:exec --only firestore --project demo-hhl-stay-rules "npm --prefix tool/firestore-rules-tests test"
+.\tool\run_firebase_emulator_tests.ps1
 ```
 
 The Emulator uses port 8180 because port 8080 is occupied by another local
-service. The six rule-test groups passed on 2026-10-24. Deploy reviewed rules
-with `firebase deploy --only firestore:rules`. This single-host classroom model
+service. Seven rule-test groups passed on 2026-10-25. Firestore Rules were
+deployed to the class project on 2026-10-25 after the emulator suite passed.
+New booking documents carry `checkInEpochMillis` so the rules enforce the
+24-hour cancellation cutoff for confirmed stays. Legacy confirmed bookings
+without that field cannot be cancelled by guests through Firebase; hosts can
+still process them. Deploy reviewed rules with
+`firebase deploy --only firestore:rules`. This single-host classroom model
 still needs review before real customer data is used. Do not put a
 service-account key or Gemini key in the repository. The Flutter Firebase
 client config is not a service-account credential, but must remain associated
 with the intended Firebase project.
 
-Firebase network behavior is not covered by `flutter test`; tests run without
-Firebase initialization. A disposable Firebase Auth sign-up plus Firestore
-profile create/read smoke test passed on 2026-10-24. A cleanup request was sent
-for the temporary account, but deletion was not independently verified. On
-2026-10-24, the latest Firebase debug APK was installed directly from
-`build/app/outputs/flutter-apk/app-debug.apk` and opened on the Medium Phone
-emulator. Firebase initialized, the app rendered its landing screen, and the
-fresh startup log contained no app crash, Firestore `PERMISSION_DENIED`, or
-startup-sync failure. After the admin shared-workspace fix, both Firebase APK
-copies in `output/builds/` were replaced from that same build and their SHA-256
-hashes matched. This smoke covers startup and public catalog loading only;
-Firebase sign-in, booking writes, host authorization, finance, and staff writes
-still need end-to-end checks. The same day, a local
-release APK also rendered the landing screen. During earlier Android checks the
-host machine ran critically low on RAM while Gradle optimized a release build;
-the emulator reported Android System UI/Phone service ANRs while the HHL Stay
-screen remained rendered. The Firebase release build was stopped before
-completion to avoid further host memory pressure. This is not a full
+`flutter test` does not initialize Firebase. A disposable live Firebase Auth
+sign-up and Firestore profile smoke test passed on 2026-10-24; cleanup of that
+historical account was not independently verified. The 2026-10-24 Medium Phone
+startup check covered Firebase initialization and public catalog loading only.
+Current Firebase integration evidence is the local emulator suite described
+below; a full end-to-end acceptance run against the live project has not been
+performed. The Android Firebase debug APK builds successfully but has not been
+installed on a device. A separate localhost web smoke test confirmed one live
+Gemini response; Android Gemini is not verified. This is not a full
 concurrency/security or multi-device acceptance test. The app keeps a local
 cache and does not yet implement a durable offline queue or conflict resolution.
+
+### Local Auth + Firestore Emulator workflow
+
+The app can point both Firebase clients at local emulators without changing
+the production project configuration. Start the Auth and Firestore emulators
+in one terminal, then launch the web build in another:
+
+```powershell
+# First terminal: run the complete disposable Auth + Firestore test suite.
+.\tool\run_firebase_emulator_tests.ps1
+
+# For manual localhost Web testing, configure JAVA_HOME to the JBR path
+# reported by `flutter doctor -v`, then run:
+firebase emulators:start --only auth,firestore --project demo-hhl-stay-rules
+
+# Second terminal, for localhost Web testing
+flutter run -d chrome `
+  --dart-define=HHL_USE_FIREBASE=true `
+  --dart-define=HHL_USE_FIREBASE_EMULATORS=true `
+  --dart-define=HHL_FIREBASE_EMULATOR_HOST=127.0.0.1
+```
+
+For Android Emulator, use `HHL_FIREBASE_EMULATOR_HOST=10.0.2.2` so the app can
+reach the host computer. Never enable the emulator flag in a production build.
+The test helper locates Java from Flutter/Android Studio when it is missing from
+PATH and runs both emulator services. No live project data is created.
+
+On 2026-10-25, all 8 test groups passed, including an Auth emulator sign-up,
+guest profile creation, guest booking write/read, host confirmation and finance
+write, and rejection of guest role escalation/finance access. The Node test
+toolchain uses Firebase 13.1.0 and Rules Unit Testing 6.0.0; `npm audit`
+reported 0 vulnerabilities after pinning the compatible gRPC dependency to
+1.14.6. These checks prove emulator behavior, not access to the live Firebase
+project or Android device acceptance.

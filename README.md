@@ -23,7 +23,7 @@ flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
 
 Ở chế độ Firebase, khách đăng ký/đăng nhập bằng Firebase Authentication, hồ sơ tài khoản được ghi vào `users`, và dữ liệu đơn đặt, homestay, phòng, đánh giá, tài chính, nhân viên, ca làm được tải/gộp khi khởi động rồi đồng bộ theo quyền tài khoản. Tài khoản quản lý phải được cấp riêng trong Firebase Console; tài khoản không thể tự nâng cấp quyền. Chế độ local vẫn dùng SharedPreferences và hai tài khoản bên dưới. Không chuyển dữ liệu local sang Firebase tự động.
 
-Rules trong [firestore.rules](firestore.rules) đã triển khai lên project lớp ngày 24/10/2026: đọc công khai danh mục/đánh giá, khách chỉ đọc đơn của mình và chỉ hủy đơn hợp lệ; hồ sơ không thể tự đổi vai trò; dữ liệu quản trị chỉ dành cho tài khoản host. Sáu nhóm Rules Emulator đã chạy đạt ngày 24/10/2026; chạy lại bằng lệnh trong [docs/firebase-mode.md](docs/firebase-mode.md). Đây là cấu hình đồ án một chủ cơ sở, chưa phải cấu hình production hoặc kiểm thử Firebase E2E. Firebase client config trỏ tới project và không chứa service-account credential.
+Rules trong [firestore.rules](firestore.rules) đã triển khai lên project lớp ngày 25/10/2026: đọc công khai danh mục/đánh giá, khách chỉ đọc đơn của mình, chỉ hủy đơn đã xác nhận khi còn hơn 24 giờ và không thể tự đổi vai trò; dữ liệu quản trị chỉ dành cho tài khoản host. Bảy nhóm Rules Emulator đã chạy đạt ngày 25/10/2026; chạy lại bằng lệnh trong [docs/firebase-mode.md](docs/firebase-mode.md). Đây là cấu hình đồ án một chủ cơ sở, chưa phải cấu hình production hoặc kiểm thử Firebase E2E. Firebase client config trỏ tới project và không chứa service-account credential.
 
 ## Tài khoản demo local
 
@@ -44,18 +44,28 @@ Video demo dài 01:14, nằm trong giới hạn 8 phút của đề: [HHL Stay d
 
 - Khách khám phá, tìm kiếm và lọc homestay/phòng, xem chi tiết, chọn ngày/số khách, đặt phòng, theo dõi hoặc hủy đơn, lưu yêu thích và đánh giá sau khi trả phòng.
 - Chủ nhà/quản trị viên quản lý homestay và phòng, xem lịch phòng, duyệt/từ chối đơn, nhận/trả phòng, bật bảo trì và theo dõi dashboard cùng báo cáo tài chính demo.
-- Tư vấn và hỗ trợ nội dung bằng Gemini khi cấu hình API key; chatbot có chế độ tư vấn ngoại tuyến.
+- Trợ lý homestay có nội dung tư vấn ngoại tuyến; kết nối Gemini online là tùy chọn thử nghiệm, chưa thuộc tiêu chí nghiệm thu và không cần cho các luồng đặt phòng/quản trị.
 - Giao diện tiếng Việt, responsive, sử dụng Be Vietnam Pro.
 
 ## AI Gemini (tùy chọn)
 
-Tạo key tại [Google AI Studio](https://aistudio.google.com/app/apikey), sau đó truyền key khi chạy:
+Tạo key tại [Google AI Studio](https://aistudio.google.com/app/apikey), sau đó khởi động tiện ích thiết lập cục bộ:
 
 ```bash
-flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8083 --dart-define=GEMINI_API_KEY=YOUR_KEY
+python tool/gemini_local_setup.py
 ```
 
-Không commit API key. Flutter Web đưa giá trị này vào mã JavaScript phía trình duyệt, vì vậy chỉ dùng key giới hạn cho demo; sản phẩm thật cần proxy qua backend. Không có key, các luồng đặt phòng và quản lý vẫn hoạt động, chatbot chuyển sang nội dung tư vấn có sẵn.
+Mở `http://127.0.0.1:8099/`, nhập Gemini API key trong trang local rồi bấm nút
+bật Gemini. Key chỉ được giữ trong RAM của proxy local; không truyền vào lệnh
+build và không được đưa vào Web bundle, APK, log hay Git. Web demo dùng proxy
+`127.0.0.1:8099`, Android Emulator dùng `10.0.2.2:8099`. Đây là cấu hình demo
+trên máy phát triển, không phải cấu hình để phát hành production.
+
+Không commit API key. Ngày 25/10/2026, một câu hỏi gợi ý homestay Đà Lạt trên
+localhost:8083 nhận phản hồi từ Gemini và giao diện báo “Gemini đang hoạt động”.
+Đây là kiểm tra live một câu hỏi, không phải nghiệm thu mọi tình huống hoặc
+Android. Không có key/proxy, các luồng đặt phòng và quản lý vẫn hoạt động;
+chatbot dùng nội dung tư vấn ngoại tuyến.
 
 ## Kiểm tra và build
 

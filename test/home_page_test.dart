@@ -24,6 +24,10 @@ void main() {
     container.read(routerProvider).go('/home');
     await tester.pumpAndSettle();
     expect(find.byType(HomePage), findsOneWidget);
+    expect(find.text('Chào bạn! 👋'), findsOneWidget);
+    expect(find.text('Điểm đến'), findsOneWidget);
+    expect(find.text('Khám phá nhanh'), findsOneWidget);
+    expect(find.text('Đơn đặt phòng'), findsOneWidget);
     expect(find.text('Tìm homestay'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);

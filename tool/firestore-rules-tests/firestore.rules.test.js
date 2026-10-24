@@ -8,9 +8,22 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
+import { deleteApp, initializeApp } from 'firebase/app';
 import {
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  deleteUser,
+  initializeAuth,
+  inMemoryPersistence,
+} from 'firebase/auth';
+import {
+  collection,
+  connectFirestoreEmulator,
+  deleteDoc,
   doc,
+  getDocs,
   getDoc,
+  getFirestore,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -29,6 +42,7 @@ function booking(overrides = {}) {
     homestayId: 'stay-1',
     status: 'pending',
     guests: 2,
+    checkInEpochMillis: Date.now() + 10 * 24 * 60 * 60 * 1000,
     payments: [],
     ...overrides,
   };
@@ -134,6 +148,31 @@ test('a guest may cancel their own pending booking but cannot edit price or rest
   ));
 });
 
+test('a guest may cancel a confirmed booking only more than 24 hours before check-in', async () => {
+  const guest = env.authenticatedContext(guestId).firestore();
+  const futureRef = doc(guest, `bookings/${guestId}_booking-future`);
+  await seed(`bookings/${guestId}_booking-future`, booking({
+    id: 'booking-future',
+    status: 'confirmed',
+    checkInEpochMillis: Date.now() + 48 * 60 * 60 * 1000,
+  }));
+  await assertSucceeds(updateDoc(futureRef, { status: 'cancelled' }));
+
+  const closeRef = doc(guest, `bookings/${guestId}_booking-close`);
+  await seed(`bookings/${guestId}_booking-close`, booking({
+    id: 'booking-close',
+    status: 'confirmed',
+    checkInEpochMillis: Date.now() + 23 * 60 * 60 * 1000,
+  }));
+  await assertFails(updateDoc(closeRef, { status: 'cancelled' }));
+
+  const legacyRef = doc(guest, `bookings/${guestId}_booking-legacy`);
+  const legacy = booking({ id: 'booking-legacy', status: 'confirmed' });
+  delete legacy.checkInEpochMillis;
+  await seed(`bookings/${guestId}_booking-legacy`, legacy);
+  await assertFails(updateDoc(legacyRef, { status: 'cancelled' }));
+});
+
 test('hosts can manage shared bookings, homestays, rooms, finance, and staff', async () => {
   const host = env.authenticatedContext(hostId).firestore();
   await seed(`users/${hostId}`, {
@@ -174,4 +213,110 @@ test('a guest can review only their checked-out booking with a valid rating', as
     bookingId: 'booking-1',
     guestId: otherGuestId,
   })));
+});
+
+test('Firebase Auth and Firestore emulator complete a guest-to-host booking flow', async () => {
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const guestApp = initializeApp({
+    apiKey: 'fake-api-key',
+    authDomain: 'localhost',
+    projectId: 'demo-hhl-stay-rules',
+    appId: `guest-${suffix}`,
+  }, `guest-${suffix}`);
+  const hostApp = initializeApp({
+    apiKey: 'fake-api-key',
+    authDomain: 'localhost',
+    projectId: 'demo-hhl-stay-rules',
+    appId: `host-${suffix}`,
+  }, `host-${suffix}`);
+  const guestAuth = initializeAuth(guestApp, { persistence: inMemoryPersistence });
+  const hostAuth = initializeAuth(hostApp, { persistence: inMemoryPersistence });
+  connectAuthEmulator(guestAuth, 'http://127.0.0.1:9099', {
+    disableWarnings: true,
+  });
+  connectAuthEmulator(hostAuth, 'http://127.0.0.1:9099', {
+    disableWarnings: true,
+  });
+  const guestDb = getFirestore(guestApp);
+  const hostDb = getFirestore(hostApp);
+  connectFirestoreEmulator(guestDb, '127.0.0.1', 8180);
+  connectFirestoreEmulator(hostDb, '127.0.0.1', 8180);
+
+  let guestUid;
+  let hostUid;
+  const bookingPath = `bookings/${suffix}_booking`;
+  let guestPath;
+  let hostPath;
+  const financePath = `financeEntries/${suffix}_expense`;
+  try {
+    const guest = await createUserWithEmailAndPassword(
+      guestAuth,
+      `guest-${suffix}@example.test`,
+      'Temporary-Emulator-Pass-123!',
+    );
+    guestUid = guest.user.uid;
+    guestPath = `users/${guestUid}`;
+    await assertSucceeds(setDoc(doc(guestDb, `users/${guestUid}`), {
+      uid: guestUid,
+      email: guest.user.email,
+      displayName: 'Emulator guest',
+      role: 'guest',
+    }));
+
+    const host = await createUserWithEmailAndPassword(
+      hostAuth,
+      `host-${suffix}@example.test`,
+      'Temporary-Emulator-Pass-123!',
+    );
+    hostUid = host.user.uid;
+    hostPath = `users/${hostUid}`;
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `users/${hostUid}`), {
+        uid: hostUid,
+        email: host.user.email,
+        displayName: 'Emulator host',
+        role: 'host',
+      });
+    });
+
+    await assertSucceeds(setDoc(doc(guestDb, bookingPath), {
+      id: `${suffix}_booking`,
+      guestId: guestUid,
+      hostId: hostUid,
+      homestayId: 'emulator-stay',
+      status: 'pending',
+      guests: 2,
+      payments: [],
+      checkInEpochMillis: Date.now() + 10 * 24 * 60 * 60 * 1000,
+    }));
+    await assertSucceeds(setDoc(doc(hostDb, financePath), {
+      id: `${suffix}_expense`,
+      title: 'Emulator test expense',
+      amount: 100,
+    }));
+    await assertSucceeds(updateDoc(doc(hostDb, bookingPath), {
+      status: 'confirmed',
+    }));
+    assert.equal((await getDocs(collection(hostDb, 'bookings'))).size > 0, true);
+    assert.equal((await getDoc(doc(guestDb, bookingPath))).data().status, 'confirmed');
+    await assert.rejects(getDoc(doc(guestDb, financePath)));
+    await assert.rejects(updateDoc(doc(guestDb, `users/${guestUid}`), {
+      role: 'host',
+    }));
+  } finally {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      const cleanup = [
+        deleteDoc(doc(adminDb, bookingPath)),
+        deleteDoc(doc(adminDb, financePath)),
+      ];
+      if (guestPath) cleanup.push(deleteDoc(doc(adminDb, guestPath)));
+      if (hostPath) cleanup.push(deleteDoc(doc(adminDb, hostPath)));
+      await Promise.all(cleanup);
+    });
+    if (guestAuth.currentUser) await deleteUser(guestAuth.currentUser);
+    if (hostAuth.currentUser) await deleteUser(hostAuth.currentUser);
+    await deleteApp(guestApp);
+    await deleteApp(hostApp);
+  }
 });

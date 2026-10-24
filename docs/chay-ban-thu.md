@@ -97,10 +97,15 @@ Local mode có thể tạo tài khoản Chủ nhà cho thử nghiệm trên thi�
 thay thế phân quyền máy chủ. Firebase mode không cho tài khoản tự nâng quyền.
 
 Xem [đặc tả bổ sung](dac-ta-app.md) về quy tắc nghiệp vụ và transaction Firebase.
-Android đã chuyển sang plugins DSL. Ngày 24/10/2026, `flutter analyze` sạch,
-100/100 unit/widget tests qua; Rules Emulator 6/6 nhóm qua. Web local và APK release local đã build lại sau
-sửa lỗi responsive cho hộp chi phí và form xếp ca. Gemini đã trả lời câu hỏi thử
-trên localhost. Bản local release đã được mở trên Medium Phone; tài khoản khách và đơn còn sau force-stop/restart, admin thấy và duyệt đơn, Finance và Buồng phòng mở được. Đây là dữ liệu demo local; Firebase E2E, Gemini trên Android và thanh toán thật chưa được xác nhận. Firebase release APK chưa được kiểm tra trên thiết bị trong lượt này. iOS chưa kiểm tra.
+Kiểm tra lại ngày 25/10/2026: `flutter analyze` sạch, 103/103 Flutter tests,
+4/4 test tiện ích proxy local và 7/7 nhóm Firestore Rules Emulator đều qua.
+Web release build và Android Firebase debug APK build thành công. Web localhost
+đã mở được màn quản trị; kiểm tra console trình duyệt không ghi nhận lỗi. Một
+câu hỏi gợi ý homestay Đà Lạt trên localhost:8083 nhận phản hồi live từ Gemini
+và giao diện báo “Gemini đang hoạt động”; đây chỉ là smoke test một câu hỏi.
+Bộ kiểm tra này không chạy Medium Phone và không cài APK lên thiết bị. Đây là
+dữ liệu demo; Firebase E2E trên project thật, đồng bộ đa thiết bị, thanh toán
+thật và iOS chưa được xác nhận.
 
 APK kiểm thử nằm trong `output/builds/`: `hhl_stay_medium_phone_local_debug.apk`,
 `hhl_stay_medium_phone_firebase_debug.apk` và `hhl_stay_medium_phone_local_release.apk`.

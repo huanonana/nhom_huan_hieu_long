@@ -56,11 +56,19 @@ service cloud.firestore {
         && request.resource.data.payments is list
         && request.resource.data.payments.size() == 0
         && request.resource.data.guests is int
-        && request.resource.data.guests > 0;
+        && request.resource.data.guests > 0
+        && request.resource.data.checkInEpochMillis is int;
       allow update: if isHost() || (
         isGuestOwner(resource.data)
         && resource.data.status in ['pending', 'confirmed']
         && request.resource.data.status == 'cancelled'
+        && (
+          resource.data.status == 'pending'
+          || (
+            'checkInEpochMillis' in resource.data
+            && request.time.toMillis() + 86400000 < resource.data.checkInEpochMillis
+          )
+        )
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
       );
       allow delete: if false;
