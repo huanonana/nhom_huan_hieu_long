@@ -29,7 +29,7 @@ Tài liệu này tách phần đã có trong code/báo cáo khỏi thông tin nh
 
 ## File sản phẩm
 
-- Báo cáo: `output/report/Bao_cao_do_an_HHL_Stay.docx` và `output/report/Bao_cao_do_an_HHL_Stay.pdf` (92 trang; Phụ lục G có 14 ảnh giao diện điện thoại dọc ở trang 62–75; Phụ lục I ghi nhận kiểm tra Medium Phone ở trang 82–86; mục lục đã khớp bản PDF cuối). Bản bìa cá nhân Hiếu và Huấn nằm trong `output/report/personal/`; bản Long cần MSSV đã xác nhận.
+- Báo cáo: `output/report/Bao_cao_do_an_HHL_Stay.docx` và `output/report/Bao_cao_do_an_HHL_Stay.pdf` (93 trang; Phụ lục F ở trang 49–62 có ma trận truy vết User Stories–test; Phụ lục G có 14 ảnh giao diện điện thoại dọc ở trang 63–76; Phụ lục I ghi nhận kiểm tra Medium Phone ở trang 83–87; mục lục đã khớp bản PDF cuối). Bản bìa cá nhân Hiếu và Huấn nằm trong `output/report/personal/`; bản Long cần MSSV đã xác nhận.
 - Bản chạy mới: `build/web` được build ở local mode; APK trong `output/builds/` gồm local debug, Firebase debug và local release. Firebase release chưa hoàn tất do giới hạn RAM trên máy này.
 - Wireframe: `docs/wireframes/01-home.png` đến `docs/wireframes/06-admin-dashboard.png`.
 - Hướng dẫn chạy: [chay-ban-thu.md](chay-ban-thu.md); chế độ Firebase: [firebase-mode.md](firebase-mode.md).
