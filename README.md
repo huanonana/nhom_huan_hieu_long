@@ -21,9 +21,9 @@ Mặc định app chạy chế độ local để demo ngoại tuyến ổn đị
 flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
 ```
 
-Ở chế độ Firebase, đăng ký/đăng nhập dùng Firebase Authentication, hồ sơ tài khoản được ghi vào `users`, và dữ liệu đơn đặt, homestay, phòng, đánh giá, tài chính, nhân viên, ca làm được tải/gộp khi khởi động rồi đồng bộ khi có thay đổi. Chế độ local vẫn dùng SharedPreferences và hai tài khoản bên dưới. Không chuyển dữ liệu local sang Firebase tự động.
+Ở chế độ Firebase, khách đăng ký/đăng nhập bằng Firebase Authentication, hồ sơ tài khoản được ghi vào `users`, và dữ liệu đơn đặt, homestay, phòng, đánh giá, tài chính, nhân viên, ca làm được tải/gộp khi khởi động rồi đồng bộ theo quyền tài khoản. Tài khoản quản lý phải được cấp riêng trong Firebase Console; tài khoản không thể tự nâng cấp quyền. Chế độ local vẫn dùng SharedPreferences và hai tài khoản bên dưới. Không chuyển dữ liệu local sang Firebase tự động.
 
-Rules hiện nằm trong [firestore.rules](firestore.rules) và đã được triển khai lên Firebase project `hhl-stay-home-2026-23010895` để chạy đồ án. Đây là rules phát triển rất rộng (đọc công khai, người đăng nhập được ghi); **không dùng cho ứng dụng thật**. Firebase client config chỉ trỏ tới project, không chứa service-account credential.
+Rules trong [firestore.rules](firestore.rules) đã triển khai lên project lớp ngày 24/10/2026: đọc công khai danh mục/đánh giá, khách chỉ đọc đơn của mình và chỉ hủy đơn hợp lệ; hồ sơ không thể tự đổi vai trò; các dữ liệu quản trị chỉ dành cho tài khoản host. Có thể cập nhật bằng `firebase deploy --only firestore:rules`. Đây là cấu hình cho đồ án một chủ cơ sở; Rules Emulator chưa được chạy trên máy hiện tại, nên chưa dùng với dữ liệu khách thật. Firebase client config chỉ trỏ tới project, không chứa service-account credential.
 
 ## Tài khoản demo local
 
@@ -73,4 +73,4 @@ flutter build apk --debug --dart-define=HHL_USE_FIREBASE=true
 
 ## Giới hạn bản demo
 
-Đây là ứng dụng demo học thuật. Local mode lưu dữ liệu trên thiết bị; Firebase mode có Auth và Firestore cho các luồng đã tích hợp. Rules hiện cho phép đọc công khai và mọi tài khoản đăng nhập ghi, vì vậy không lưu dữ liệu khách thật. Số liệu doanh thu/chi tiêu là dữ liệu demo, không đại diện giao dịch thật. Thanh toán, thông báo push, kiểm soát quyền theo chủ sở hữu, xử lý đặt trùng trên server và đồng bộ ngoại tuyến đầy đủ chưa có.
+Đây là ứng dụng demo học thuật. Local mode lưu dữ liệu trên thiết bị; Firebase mode có Auth và Firestore cho các luồng đã tích hợp. Rules tách quyền khách/quản lý nhưng chưa có phân tách nhiều chủ cơ sở, giao dịch đặt phòng chống tranh chấp hay hàng đợi đồng bộ ngoại tuyến. Không lưu dữ liệu khách thật. Số liệu doanh thu/chi tiêu là dữ liệu demo, không đại diện giao dịch thật. Thanh toán và thông báo push chưa có.

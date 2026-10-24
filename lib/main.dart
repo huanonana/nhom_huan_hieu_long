@@ -10,6 +10,11 @@ import 'core/theme/app_theme.dart';
 import 'core/state/demo_storage.dart';
 import 'core/state/app_state.dart';
 import 'features/auth/data/firebase_auth_repository.dart';
+import 'features/auth/domain/app_user.dart';
+import 'features/booking/domain/booking.dart';
+import 'features/dashboard/domain/finance_entry.dart';
+import 'features/dashboard/domain/staff_member.dart';
+import 'features/dashboard/domain/staff_shift.dart';
 import 'features/booking/data/demo_booking_repository.dart';
 import 'firebase_options.dart';
 
@@ -61,6 +66,7 @@ Future<void> _syncInitialFirebaseData(
   FirebaseDocumentStore documentStore,
 ) async {
   var hadSyncError = false;
+  AppUser? profile;
 
   Future<List<T>> loadList<T>(
     String collection,
@@ -83,32 +89,36 @@ Future<void> _syncInitialFirebaseData(
 
   try {
     try {
-      await firebaseAuth.currentProfile().timeout(const Duration(seconds: 8));
+      profile = await firebaseAuth.currentProfile().timeout(
+        const Duration(seconds: 8),
+      );
     } catch (error) {
       hadSyncError = true;
       debugPrint('Firebase profile load failed (${error.runtimeType}).');
     }
     // Load collections concurrently and keep the ones that are readable. This
     // lets public catalog data load even if a management collection is denied.
-    final bookingsFuture = loadList(
-      'bookings',
-      documentStore.allBookingsForDemo(),
-    );
+    final bookingsFuture = profile == null
+        ? Future.value(<Booking>[])
+        : loadList(
+            'bookings',
+            profile.role == AppUserRole.host
+                ? documentStore.allBookingsForDemo()
+                : documentStore.bookingsForGuest(profile.uid),
+          );
     final homesFuture = loadList('homestays', documentStore.publicHomestays());
     final roomsFuture = loadList('rooms', documentStore.publicRooms());
     final reviewsFuture = loadList('reviews', documentStore.publicReviews());
-    final financeFuture = loadList(
-      'financeEntries',
-      documentStore.allFinanceEntries(),
-    );
-    final staffFuture = loadList(
-      'staffMembers',
-      documentStore.allStaffMembers(),
-    );
-    final shiftsFuture = loadList(
-      'staffShifts',
-      documentStore.allStaffShifts(),
-    );
+    final isHost = profile?.role == AppUserRole.host;
+    final financeFuture = isHost
+        ? loadList('financeEntries', documentStore.allFinanceEntries())
+        : Future.value(<FinanceEntry>[]);
+    final staffFuture = isHost
+        ? loadList('staffMembers', documentStore.allStaffMembers())
+        : Future.value(<StaffMember>[]);
+    final shiftsFuture = isHost
+        ? loadList('staffShifts', documentStore.allStaffShifts())
+        : Future.value(<StaffShift>[]);
     final bookings = await bookingsFuture;
     final homes = await homesFuture;
     final rooms = await roomsFuture;

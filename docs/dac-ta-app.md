@@ -88,19 +88,22 @@ và https://firebase.google.com/docs/firestore/transaction-data-contention
    repository, dữ liệu mẫu, khám phá/đặt/quản trị và kiểm thử ngày, sức chứa,
    trùng lịch, review, tài chính và trạng thái.
 2. **Firebase lớp — đã tích hợp.** Firebase Auth email/mật khẩu, hồ sơ người dùng,
-   Firestore document store và Rules demo; Android/Web build thành công, Auth/profile
-   smoke test và Medium Phone startup/Explore đã qua.
-3. **Hardening production — còn thiếu.** Thay rules rộng bằng phân quyền theo UID,
-   role và chủ sở hữu; thêm transaction đặt phòng, retry/offline queue, đồng bộ đa
-   thiết bị, xác minh ảnh và kiểm thử emulator/concurrency.
+   Firestore document store và role-based Rules đã triển khai; web Firebase và APK
+   debug build thành công. Auth/profile smoke test trước đó đã qua; Rules Emulator
+   chưa chạy và chưa lặp lại app-level permission smoke sau lần siết Rules.
+3. **Hardening production — còn thiếu.** Rules lớp hiện tách quyền khách/quản lý,
+   nhưng mô hình vẫn chỉ có một vai trò host, không có phân tách nhiều chủ sở hữu;
+   thêm transaction đặt phòng, retry/offline queue, đồng bộ đa thiết bị, xác minh
+   ảnh và kiểm thử Firebase Emulator/concurrency.
 4. **Dịch vụ thật — ngoài phạm vi demo.** Thanh toán/đối soát, FCM, QR ký phía server,
    bản đồ và quy trình kiểm duyệt homestay.
 
 ## Giới hạn bản thử hiện tại
 
 Local mode lưu dữ liệu demo trên thiết bị. Firebase mode dùng Firebase Authentication
-và Firestore cho các luồng được tích hợp; các Rules hiện áp dụng cho project lớp,
-đọc công khai và cho mọi tài khoản đăng nhập ghi. Không dùng dữ liệu thật hay coi
-role phía client là bảo mật. QR vẫn là demo; thanh toán/đối soát và FCM chưa có.
+và Firestore cho các luồng được tích hợp; Security Rules giới hạn đơn theo UID,
+chặn tự nâng quyền và dành dữ liệu vận hành cho host. Đây vẫn là mô hình lớp một
+chủ homestay, chưa có transaction máy chủ chống đặt trùng đồng thời. Không dùng dữ
+liệu khách thật. QR vẫn là demo; thanh toán/đối soát và FCM chưa có.
 Không công bố bản thử này là hệ thống đặt phòng production.
 Android đã nâng cấu hình Gradle và build APK debug; còn cần thử trên thiết bị.

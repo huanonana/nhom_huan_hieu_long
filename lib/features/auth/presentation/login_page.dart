@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/firebase/firebase_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/widgets/common.dart';
@@ -61,10 +62,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           .signIn(email: _email.text, password: _password.text);
       if (widget.adminMode && user.role != AppUserRole.host) {
         if (mounted) {
-          setState(
-            () => _error =
-                'Tài khoản này chưa có quyền Chủ nhà/Admin. Hãy dùng tài khoản chủ nhà hoặc đăng ký vai trò Chủ nhà.',
-          );
+          final message = ref.read(firebaseModeProvider)
+              ? 'Tài khoản này chưa có quyền Chủ nhà/Admin. Hãy liên hệ quản trị viên dự án để được cấp quyền.'
+              : 'Tài khoản này chưa có quyền Chủ nhà/Admin. Hãy dùng tài khoản chủ nhà hoặc đăng ký vai trò Chủ nhà.';
+          setState(() => _error = message);
         }
         return;
       }

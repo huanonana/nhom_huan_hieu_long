@@ -36,12 +36,19 @@ Local mode là mặc định. Để đăng ký/đăng nhập Firebase và dùng 
 
 ```bash
 flutter run -d chrome --dart-define=HHL_USE_FIREBASE=true
-flutter run -d emulator-5556 --dart-define=HHL_USE_FIREBASE=true
+flutter devices
+flutter run -d <device-id> --dart-define=HHL_USE_FIREBASE=true
 ```
 
 Android/Web Firebase được cấu hình cho project lớp. File [Rules](../firestore.rules)
-đã triển khai cho demo ngày 24/10/2026; đây là quyền đọc công khai/ghi cho mọi
-tài khoản đã đăng nhập, chỉ dùng dữ liệu giả.
+cho phép đọc công khai danh mục và đánh giá, khách chỉ đọc/hủy đơn của chính
+mình, còn số liệu tài chính/nhân viên và thao tác quản lý yêu cầu vai trò host.
+Rules hiện đã triển khai trên Firebase project ngày 24/10/2026. Emulator test
+chưa chạy được trên máy hiện tại do thiếu Java, nên chỉ dùng dữ liệu giả. Để cấp tài khoản quản trị cho demo
+Firebase: đăng ký tài khoản qua app với vai trò Khách, lấy UID trong Firebase
+Authentication, rồi trong Firestore Console đặt `users/{UID}.role` thành
+`host`. Vai trò không được cấp từ màn hình đăng ký. Hai tài khoản demo trong
+bảng dưới chỉ dành cho chế độ local.
 
 Tài khoản demo được tạo tự động khi ứng dụng khởi động lần đầu:
 
@@ -86,13 +93,16 @@ retry queue, xử lý xung đột hay phân quyền theo chủ sở hữu.
 Chưa có thanh toán/tiền thực thu, FCM, ảnh xác thực của homestay và bản đồ thật.
 Mã QR hiện là mã demo tạo từ ID đơn, chưa có token ngẫu nhiên, máy quét tích hợp hay xác minh qua máy chủ.
 Không nhập dữ liệu nhạy cảm vào bản thử. Tải lại cùng trình duyệt/địa chỉ sẽ đọc dữ liệu đã lưu; xóa dữ liệu trình duyệt hoặc gỡ app có thể làm mất dữ liệu demo. Chỉ thử trên một tab tại một thời điểm, chưa hỗ trợ đồng bộ nhiều tab.
-Chuyển vai trò chỉ là công cụ thử nghiệm, không thay thế Security Rules.
+Local mode có thể tạo tài khoản Chủ nhà cho thử nghiệm trên thiết bị; đây không
+thay thế phân quyền máy chủ. Firebase mode không cho tài khoản tự nâng quyền.
 
 Xem [đặc tả bổ sung](dac-ta-app.md) về quy tắc nghiệp vụ và transaction Firebase.
 Android đã chuyển sang plugins DSL. Ngày 24/10/2026, `flutter analyze` sạch,
-96/96 unit/widget tests qua, Web local build thành công; local/Firebase debug APK
-và local release APK đều build được. Firebase debug APK đã mở landing và Explore
-trên Medium Phone; local release APK cũng render giao diện app. Firebase release
+98/98 unit/widget tests qua, `flutter analyze` sạch, Web local/Firebase build và
+Firebase debug APK build thành công; local release APK đã build trước đó. Firebase
+debug APK trước đợt siết Rules đã mở landing và Explore trên Medium Phone; ở lần
+kiểm tra mới nhất emulator đã ngắt kết nối nên chưa kiểm tra lại runtime sau Rules.
+Local release APK cũng render giao diện app. Firebase release
 APK chưa tạo xong do máy gần cạn RAM trong bước R8. Khi thiếu RAM, emulator có
 thể hiện cảnh báo System UI/Phone service không phản hồi dù HHL Stay vẫn render;
 đây là vấn đề của môi trường Android ảo trong lần kiểm tra này, không phải crash

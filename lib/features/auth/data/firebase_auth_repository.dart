@@ -49,6 +49,13 @@ class FirebaseAuthRepository implements AuthRepository {
     required AppUserRole role,
     String? displayName,
   }) async {
+    if (role != AppUserRole.guest) {
+      throw FirebaseAuthException(
+        code: 'host-provisioning-required',
+        message:
+            'Tài khoản quản lý phải được cấp quyền bởi quản trị viên dự án.',
+      );
+    }
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -84,7 +91,12 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> signOut() => _auth.signOut();
 
   @override
-  Future<void> updateRole(String uid, AppUserRole role) async {
-    await _firestore.collection('users').doc(uid).update({'role': role.name});
-  }
+  Future<void> updateRole(
+    String uid,
+    AppUserRole role,
+  ) async => throw FirebaseAuthException(
+    code: 'host-provisioning-required',
+    message:
+        'Không thể đổi quyền tài khoản từ ứng dụng. Hãy cấp quyền qua Firebase Console.',
+  );
 }

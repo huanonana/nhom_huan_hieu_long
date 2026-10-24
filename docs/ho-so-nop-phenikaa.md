@@ -11,9 +11,9 @@ Tài liệu này tách phần đã có trong code/báo cáo khỏi thông tin nh
 | Class Diagram | Class diagram HHL Stay trong báo cáo | Đối chiếu sơ đồ với model hiện tại trước khi in. |
 | Sequence/Activity diagrams | 3 Activity + 4 Sequence (7 sơ đồ quy trình) | Giải thích được mỗi sơ đồ trong phần trình bày. |
 | Screens, wireframes, mockup và Flow of Work | 14 ảnh app, 6 wireframe mobile PNG, 7 luồng và sơ đồ làm việc | Bốn link mẫu Canvas trong đề trả `Unauthorized` khi kiểm tra ngày 24/10/2026. Cần xác nhận mẫu đã chọn và lấy ảnh/export trước khi làm câu 5. |
-| Implement stories | Các luồng Flutter, 96 test tự động, web local và Android debug build | Demo trực tiếp các luồng đã chọn, nêu giới hạn demo. |
-| Firebase/DB/ORM | Firebase Auth + Firestore trong build bật `HHL_USE_FIREBASE=true`; document mapper, rules và test smoke thật | Không dùng rules demo với dữ liệu khách thật; nếu cô yêu cầu emulator test hoặc quyền theo role, cần bổ sung riêng. |
-| Test và kiểm định | `flutter analyze`, 96/96 unit/widget tests, Web build, local/Firebase Android debug APK và local release APK; Firebase APK mở được Explore trên Medium Phone | Lần build release gần nhất làm máy chủ gần cạn RAM; Android emulator hiện có System UI/Phone-service ANR dù HHL Stay vẫn render. Đây là giới hạn môi trường cần nêu khi demo; chưa có test giao dịch đồng thời hoặc production. |
+| Implement stories | Các luồng Flutter, 98 test tự động, web local và Android debug build | Demo trực tiếp các luồng đã chọn, nêu giới hạn demo. |
+| Firebase/DB/ORM | Firebase Auth + Firestore trong build bật `HHL_USE_FIREBASE=true`; document mapper và Rules theo vai trò đã triển khai | Rules Emulator và app-level permission smoke sau lần siết Rules chưa chạy vì thiếu Java và emulator đã ngắt kết nối; không dùng dữ liệu khách thật. |
+| Test và kiểm định | `flutter analyze`, 98/98 unit/widget tests, Web local/Firebase build và Firebase debug APK build; Medium Phone đã được smoke test ở build trước | Emulator hiện không kết nối nên chưa cài lại APK và test runtime sau thay đổi Rules. Chưa có kiểm thử giao dịch đồng thời hoặc production. |
 | Báo cáo, demo, GitHub và đóng góp | Báo cáo DOCX/PDF; có video demo local ứng viên; Git remote đã cấu hình | Nhóm phải duyệt nội dung/thời lượng video, đưa link truy cập được, xác nhận commit/repo đúng phiên bản nộp và tỷ lệ đóng góp thật. |
 | Commit và điểm danh | Git history trong repo | Mỗi thành viên rà commit của mình và xác nhận yêu cầu điểm danh/chữ ký nộp. |
 
@@ -33,6 +33,6 @@ Tài liệu này tách phần đã có trong code/báo cáo khỏi thông tin nh
 - Bản chạy mới: `build/web` được build ở local mode; APK trong `output/builds/` gồm local debug, Firebase debug và local release. Firebase release chưa hoàn tất do giới hạn RAM trên máy này.
 - Wireframe: `docs/wireframes/01-home.png` đến `docs/wireframes/06-admin-dashboard.png`.
 - Hướng dẫn chạy: [chay-ban-thu.md](chay-ban-thu.md); chế độ Firebase: [firebase-mode.md](firebase-mode.md).
-- Rules demo: [../firestore.rules](../firestore.rules). Rules này đã triển khai lên project lớp để thử; không dùng cho dữ liệu thật.
+- Firestore Rules: [../firestore.rules](../firestore.rules). Rules theo vai trò đã triển khai lên project lớp ngày 24/10/2026; chưa chạy Emulator test sau lần cập nhật.
 
 Thời hạn trên đề được đọc là bản cứng trước 17:00 và PDF trước 23:59 ngày 03/11/2026. Nhóm cần kiểm tra lại trên trang môn học nếu giảng viên có cập nhật.

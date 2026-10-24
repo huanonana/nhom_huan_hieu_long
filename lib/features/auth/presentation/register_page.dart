@@ -6,6 +6,7 @@ import '../../../core/router/navigation.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../../../core/firebase/firebase_providers.dart';
 import '../domain/app_user.dart';
 import 'auth_error_message.dart';
 import 'auth_layout.dart';
@@ -34,7 +35,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.didChangeDependencies();
     if (_initialRoleApplied) return;
     _initialRoleApplied = true;
-    if (GoRouterState.of(context).uri.queryParameters['role'] == 'host') {
+    if (!ref.read(firebaseModeProvider) &&
+        GoRouterState.of(context).uri.queryParameters['role'] == 'host') {
       _role = AppUserRole.host;
     }
   }
@@ -79,149 +81,163 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   @override
-  Widget build(BuildContext context) => AuthLayout(
-    title: 'Tạo tài khoản HHL Stay',
-    description:
-        'Tham gia để khám phá nơi nghỉ yêu thích hoặc quản lý homestay của bạn.',
-    child: Form(
-      key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.holiday_village_rounded, color: brand, size: 54),
-          const SizedBox(height: 12),
-          Text(
-            'Tạo tài khoản',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 26),
-          const GuidanceTile(
-            steps:
-                'Chọn Khách để đặt phòng, hoặc Chủ nhà để đăng nhập khu vực quản lý. Tài khoản và đơn đặt được lưu trên trình duyệt này nên vẫn còn sau khi tải lại trang.',
-          ),
-          HoverMotion(
-            scale: 1.012,
-            lift: 2,
-            child: TextFormField(
-              controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Tên hiển thị',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Nhập tên hiển thị.'
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 14),
-          HoverMotion(
-            scale: 1.012,
-            lift: 2,
-            child: TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              validator: (value) => value == null || !value.contains('@')
-                  ? 'Nhập email hợp lệ.'
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 14),
-          HoverMotion(
-            scale: 1.012,
-            lift: 2,
-            child: TextFormField(
-              controller: _password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mật khẩu',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-              validator: (value) => value == null || value.length < 6
-                  ? 'Mật khẩu tối thiểu 6 ký tự.'
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text('Bạn đăng ký với vai trò'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('Khách'),
-                selected: _role == AppUserRole.guest,
-                onSelected: (_) => setState(() => _role = AppUserRole.guest),
-              ),
-              ChoiceChip(
-                label: const Text('Chủ nhà'),
-                selected: _role == AppUserRole.host,
-                onSelected: (_) => setState(() => _role = AppUserRole.host),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
+  Widget build(BuildContext context) {
+    final firebaseMode = ref.watch(firebaseModeProvider);
+    return AuthLayout(
+      title: 'Tạo tài khoản HHL Stay',
+      description:
+          'Tham gia để khám phá nơi nghỉ yêu thích hoặc quản lý homestay của bạn.',
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(Icons.holiday_village_rounded, color: brand, size: 54),
             const SizedBox(height: 12),
             Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              'Tạo tài khoản',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 26),
+            GuidanceTile(
+              steps: firebaseMode
+                  ? 'Tạo tài khoản khách để đặt phòng và theo dõi đơn. Tài khoản quản lý được cấp riêng để bảo vệ dữ liệu vận hành.'
+                  : 'Chọn Khách để đặt phòng hoặc Chủ nhà để vào khu vực quản lý. Tài khoản và dữ liệu được lưu trên thiết bị này.',
+            ),
+            HoverMotion(
+              scale: 1.012,
+              lift: 2,
+              child: TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(
+                  labelText: 'Tên hiển thị',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập tên hiển thị.'
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 14),
+            HoverMotion(
+              scale: 1.012,
+              lift: 2,
+              child: TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (value) => value == null || !value.contains('@')
+                    ? 'Nhập email hợp lệ.'
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 14),
+            HoverMotion(
+              scale: 1.012,
+              lift: 2,
+              child: TextFormField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Mật khẩu',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (value) => value == null || value.length < 6
+                    ? 'Mật khẩu tối thiểu 6 ký tự.'
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (firebaseMode)
+              Text(
+                'Tài khoản mới được tạo với quyền khách. Quyền quản lý chỉ do quản trị viên dự án cấp.',
+                style: Theme.of(context).textTheme.bodySmall,
+              )
+            else ...[
+              const Text('Bạn đăng ký với vai trò'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Khách'),
+                    selected: _role == AppUserRole.guest,
+                    onSelected: (_) =>
+                        setState(() => _role = AppUserRole.guest),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Chủ nhà'),
+                    selected: _role == AppUserRole.host,
+                    onSelected: (_) => setState(() => _role = AppUserRole.host),
+                  ),
+                ],
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 22),
+            HoverMotion(
+              scale: 1.025,
+              lift: 3,
+              child: FilledButton(
+                onPressed: _loading ? null : _submit,
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Đăng ký'),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const SocialAuthButtons(),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                final uri = GoRouterState.of(context).uri;
+                final params = <String, String>{
+                  if (uri.queryParameters['from'] case final from?)
+                    'from': from,
+                  if (uri.queryParameters['back'] case final back?)
+                    'back': back,
+                };
+                context.go(
+                  params.isEmpty
+                      ? '/login'
+                      : '/login?${Uri(queryParameters: params).query}',
+                );
+              },
+              child: const Text('Đã có tài khoản? Đăng nhập'),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final back = GoRouterState.of(
+                  context,
+                ).uri.queryParameters['back'];
+                if (back != null &&
+                    back.startsWith('/') &&
+                    !back.startsWith('//')) {
+                  context.go(back);
+                } else {
+                  navigateBack(context, fallback: '/explore');
+                }
+              },
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('Quay lại'),
             ),
           ],
-          const SizedBox(height: 22),
-          HoverMotion(
-            scale: 1.025,
-            lift: 3,
-            child: FilledButton(
-              onPressed: _loading ? null : _submit,
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Đăng ký'),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const SocialAuthButtons(),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () {
-              final uri = GoRouterState.of(context).uri;
-              final params = <String, String>{
-                if (uri.queryParameters['from'] case final from?) 'from': from,
-                if (uri.queryParameters['back'] case final back?) 'back': back,
-              };
-              context.go(
-                params.isEmpty
-                    ? '/login'
-                    : '/login?${Uri(queryParameters: params).query}',
-              );
-            },
-            child: const Text('Đã có tài khoản? Đăng nhập'),
-          ),
-          TextButton.icon(
-            onPressed: () {
-              final back = GoRouterState.of(
-                context,
-              ).uri.queryParameters['back'];
-              if (back != null &&
-                  back.startsWith('/') &&
-                  !back.startsWith('//')) {
-                context.go(back);
-              } else {
-                navigateBack(context, fallback: '/explore');
-              }
-            },
-            icon: const Icon(Icons.arrow_back, size: 18),
-            label: const Text('Quay lại'),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

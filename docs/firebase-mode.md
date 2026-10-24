@@ -12,17 +12,27 @@ flutter build apk --debug --dart-define=HHL_USE_FIREBASE=true
 
 The opt-in mode initializes Firebase Core, uses Firebase Authentication for
 email/password registration and login, stores account profiles in `users`,
-merges existing booking, homestay, room, review, finance, staff, and shift
-documents into the local cache at startup, and writes domain changes back to
-their Firestore collections. Local SharedPreferences remains the working cache;
-a full offline queue/conflict resolver is not implemented.
+loads public homestay, room, and review data, and merges bookings into the local
+cache. Guests only query their own bookings; hosts load bookings and management
+collections. Domain changes write back to their Firestore collections. Local
+SharedPreferences remains the working cache; a full offline queue/conflict
+resolver is not implemented.
 
-`firestore.rules` uses broad classroom development rules: public reads and
-writes from any signed-in account. They were deployed to the configured project
-on 2026-10-24 to unblock the demo. These rules are not safe for a public
-product. Do not put a service account key or Gemini key in the repository. The
+`firestore.rules` now allows public reads only for the homestay catalog and
+reviews, limits guest booking reads/cancellation to the signed-in guest, and
+reserves finance, staff, and catalog writes for users whose `users/{uid}`
+profile has the `host` role. A new Firebase account can only create a `guest`
+profile; a project administrator must grant the `host` role through Firebase
+Console. The app cannot elevate its own role. Deploy the rules with
+`firebase deploy --only firestore:rules`; they were deployed to the configured
+classroom project on 2026-10-24. The Firebase Emulator could not be run on the
+current machine because Java is unavailable, and the emulator device
+disconnected before a post-deploy app-level permission smoke test. Run the
+Rules tests in an environment with the Emulator before relying on them. This
+single-host classroom model still needs review before real customer data is
+used. Do not put a service-account key or Gemini key in the repository. The
 Flutter Firebase client config is not a service-account credential, but must
-still be kept associated with the intended Firebase project.
+remain associated with the intended Firebase project.
 
 Firebase network behavior is not covered by `flutter test`; tests run without
 Firebase initialization. A disposable Firebase Auth sign-up plus Firestore

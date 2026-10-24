@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_huan_hieu/core/router/app_router.dart';
+import 'package:nhom_huan_hieu/core/firebase/firebase_providers.dart';
 import 'package:nhom_huan_hieu/core/state/app_state.dart';
 import 'package:nhom_huan_hieu/features/auth/domain/app_user.dart';
 import 'package:nhom_huan_hieu/features/auth/domain/auth_repository.dart';
@@ -103,6 +104,38 @@ void main() {
 
     expect(find.text('Tạo tài khoản'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('Firebase registration cannot self-select a management role', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final container = ProviderContainer(
+      overrides: [
+        firebaseModeProvider.overrideWithValue(true),
+        authModeProvider.overrideWithValue(true),
+      ],
+    );
+    container.read(routerProvider).go('/register?role=host');
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tạo tài khoản'), findsOneWidget);
+    expect(find.text('Chủ nhà'), findsNothing);
+    expect(
+      find.textContaining('Quyền quản lý chỉ do quản trị viên dự án cấp.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
@@ -331,6 +364,50 @@ void main() {
       container.read(routerProvider).routeInformationProvider.value.uri.path,
       '/admin/login',
     );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    auth.dispose();
+  });
+
+  testWidgets('Firebase admin login explains that role must be provisioned', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final auth = _LoginAuthRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authModeProvider.overrideWithValue(true),
+        firebaseModeProvider.overrideWithValue(true),
+        authRepositoryProvider.overrideWithValue(auth),
+        currentUserProvider.overrideWith((ref) => auth.currentUser),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/admin/login');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'guest-test@example.invalid',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'guest-pass-123');
+    await tester.tap(find.text('Đăng nhập quản lý').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('liên hệ quản trị viên dự án để được cấp quyền'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('đăng ký vai trò Chủ nhà'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox());
